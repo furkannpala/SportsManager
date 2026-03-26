@@ -1,5 +1,6 @@
 package com.sportsmanager.core;
 
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -33,4 +34,9 @@ public interface Sport {
     int getMatchPeriodDurationMinutes();
 
     int getMaxSubstitutions();
+
+
+    default List<String> getAttributesForCategory(TrainingCategory focus) {
+        return new ArrayList<>();
+    }
 }
