@@ -27,6 +27,9 @@ public abstract class Player {
 
     public abstract int getAttributeValue(String name);
 
+    /** Increases the named attribute by the given amount (clamped to 100 by the caller). */
+    public abstract void increaseAttribute(String attributeName, int amount);
+
 
     public boolean isAvailable() {
         return injuryGamesRemaining == 0;
