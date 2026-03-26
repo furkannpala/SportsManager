@@ -11,10 +11,12 @@ public enum FootballPosition implements Position {
         @Override
         public Map<String, Double> getWeightedAttributes() {
             Map<String, Double> w = new LinkedHashMap<>();
-            w.put("defending", 0.40);
-            w.put("physical",  0.30);
-            w.put("pace",      0.15);
-            w.put("passing",   0.15);
+            w.put("reflexes",    0.30);
+            w.put("diving",      0.25);
+            w.put("handling",    0.20);
+            w.put("positioning", 0.15);
+            w.put("pace",        0.05);
+            w.put("kicking",     0.05);
             return w;
         }
     },
@@ -25,8 +27,10 @@ public enum FootballPosition implements Position {
             Map<String, Double> w = new LinkedHashMap<>();
             w.put("defending", 0.40);
             w.put("physical",  0.25);
-            w.put("pace",      0.20);
-            w.put("passing",   0.15);
+            w.put("pace",      0.15);
+            w.put("passing",   0.10);
+            w.put("dribbling", 0.05);
+            w.put("shooting",  0.05);
             return w;
         }
     },
@@ -35,10 +39,12 @@ public enum FootballPosition implements Position {
         @Override
         public Map<String, Double> getWeightedAttributes() {
             Map<String, Double> w = new LinkedHashMap<>();
-            w.put("defending", 0.35);
+            w.put("defending", 0.30);
             w.put("pace",      0.25);
             w.put("passing",   0.20);
-            w.put("physical",  0.20);
+            w.put("physical",  0.15);
+            w.put("dribbling", 0.05);
+            w.put("shooting",  0.05);
             return w;
         }
     },
@@ -47,10 +53,12 @@ public enum FootballPosition implements Position {
         @Override
         public Map<String, Double> getWeightedAttributes() {
             Map<String, Double> w = new LinkedHashMap<>();
-            w.put("defending", 0.35);
+            w.put("defending", 0.30);
             w.put("pace",      0.25);
             w.put("passing",   0.20);
-            w.put("physical",  0.20);
+            w.put("physical",  0.15);
+            w.put("dribbling", 0.05);
+            w.put("shooting",  0.05);
             return w;
         }
     },
@@ -59,11 +67,12 @@ public enum FootballPosition implements Position {
         @Override
         public Map<String, Double> getWeightedAttributes() {
             Map<String, Double> w = new LinkedHashMap<>();
-            w.put("passing",   0.30);
+            w.put("passing",   0.25);
             w.put("defending", 0.25);
             w.put("physical",  0.20);
             w.put("pace",      0.15);
             w.put("dribbling", 0.10);
+            w.put("shooting",  0.05);
             return w;
         }
     },
@@ -72,11 +81,12 @@ public enum FootballPosition implements Position {
         @Override
         public Map<String, Double> getWeightedAttributes() {
             Map<String, Double> w = new LinkedHashMap<>();
-            w.put("passing",   0.35);
-            w.put("dribbling", 0.25);
+            w.put("passing",   0.25);
+            w.put("dribbling", 0.20);
             w.put("pace",      0.20);
-            w.put("physical",  0.10);
-            w.put("defending", 0.10);
+            w.put("physical",  0.15);
+            w.put("defending", 0.15);
+            w.put("shooting",  0.05);
             return w;
         }
     },
@@ -85,10 +95,12 @@ public enum FootballPosition implements Position {
         @Override
         public Map<String, Double> getWeightedAttributes() {
             Map<String, Double> w = new LinkedHashMap<>();
-            w.put("passing",   0.30);
-            w.put("dribbling", 0.30);
+            w.put("dribbling", 0.25);
+            w.put("passing",   0.25);
             w.put("shooting",  0.20);
-            w.put("pace",      0.20);
+            w.put("pace",      0.15);
+            w.put("physical",  0.10);
+            w.put("defending", 0.05);
             return w;
         }
     },
@@ -97,10 +109,12 @@ public enum FootballPosition implements Position {
         @Override
         public Map<String, Double> getWeightedAttributes() {
             Map<String, Double> w = new LinkedHashMap<>();
-            w.put("pace",      0.35);
-            w.put("dribbling", 0.30);
+            w.put("pace",      0.30);
+            w.put("dribbling", 0.25);
             w.put("shooting",  0.20);
             w.put("passing",   0.15);
+            w.put("physical",  0.05);
+            w.put("defending", 0.05);
             return w;
         }
     },
@@ -109,10 +123,12 @@ public enum FootballPosition implements Position {
         @Override
         public Map<String, Double> getWeightedAttributes() {
             Map<String, Double> w = new LinkedHashMap<>();
-            w.put("pace",      0.35);
-            w.put("dribbling", 0.30);
+            w.put("pace",      0.30);
+            w.put("dribbling", 0.25);
             w.put("shooting",  0.20);
             w.put("passing",   0.15);
+            w.put("physical",  0.05);
+            w.put("defending", 0.05);
             return w;
         }
     },
@@ -121,10 +137,12 @@ public enum FootballPosition implements Position {
         @Override
         public Map<String, Double> getWeightedAttributes() {
             Map<String, Double> w = new LinkedHashMap<>();
-            w.put("shooting",  0.40);
-            w.put("pace",      0.30);
-            w.put("dribbling", 0.20);
-            w.put("physical",  0.10);
+            w.put("shooting",  0.35);
+            w.put("pace",      0.25);
+            w.put("physical",  0.15);
+            w.put("dribbling", 0.15);
+            w.put("passing",   0.05);
+            w.put("defending", 0.05);
             return w;
         }
     },
@@ -133,10 +151,12 @@ public enum FootballPosition implements Position {
         @Override
         public Map<String, Double> getWeightedAttributes() {
             Map<String, Double> w = new LinkedHashMap<>();
-            w.put("shooting",  0.35);
+            w.put("shooting",  0.30);
             w.put("physical",  0.25);
-            w.put("pace",      0.25);
-            w.put("dribbling", 0.15);
+            w.put("pace",      0.20);
+            w.put("dribbling", 0.10);
+            w.put("passing",   0.10);
+            w.put("defending", 0.05);
             return w;
         }
     };

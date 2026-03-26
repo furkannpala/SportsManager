@@ -39,4 +39,8 @@ public interface Sport {
     default List<String> getAttributesForCategory(TrainingCategory focus) {
         return new ArrayList<>();
     }
+
+    default List<String> getAttributeNamesForPosition(Position position) {
+        return getPlayerAttributeNames();
+    }
 }
