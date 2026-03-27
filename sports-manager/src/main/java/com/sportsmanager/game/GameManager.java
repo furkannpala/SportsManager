@@ -12,6 +12,7 @@ public class GameManager {
     private static GameManager instance;
 
     private SeasonState state;
+    private FootballLeague footballLeague;   // kept to avoid repeated casts
 
     private GameManager() {}
 
@@ -23,17 +24,15 @@ public class GameManager {
     }
 
 
-
-
     public void initNewGame(Sport sport, List<Team> allTeams, Team userTeam) {
-        FootballLeague league = new FootballLeague(allTeams, sport);
-        league.generateFixture();
+        footballLeague = new FootballLeague(allTeams, sport);
+        footballLeague.generateFixture();
 
         state = new SeasonState();
         state.setCurrentSport(sport);
-        state.setLeague(league);
-        state.setCurrentFixture(league.getFixture());
-        state.setCurrentStandings(league.getStandingsObject());
+        state.setLeague(footballLeague);
+        state.setCurrentFixture(footballLeague.getFixture());
+        state.setCurrentStandings(footballLeague.getStandingsObject());
         state.setAllTeams(allTeams);
         state.setUserTeam(userTeam);
         state.setCurrentWeek(1);
@@ -51,9 +50,8 @@ public class GameManager {
     public void advanceSeason() {
         if (state == null) return;
         state.getCurrentStandings().resetAll();
-        state.getLeague().generateFixture();
-        state.setCurrentFixture(
-                ((FootballLeague) state.getLeague()).getFixture());
+        footballLeague.generateFixture();
+        state.setCurrentFixture(footballLeague.getFixture());
         state.setCurrentWeek(1);
         state.setSeasonNumber(state.getSeasonNumber() + 1);
     }
