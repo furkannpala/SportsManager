@@ -63,8 +63,7 @@ public class FootballSport implements Sport {
 
     @Override
     public MatchEngine createMatchEngine() {
-        // TODO: return new FootballMatchEngine() after Commit 4
-        return null;
+        return new FootballMatchEngine();
     }
 
     @Override
@@ -95,8 +94,9 @@ public class FootballSport implements Sport {
     private static TrainingSession session(String name, String description,
                                            TrainingCategory category) {
         return new TrainingSession() {
-            @Override public String getName()        { return name; }
-            @Override public String getDescription() { return description; }
+            @Override public String getName()             { return name; }
+            @Override public String getDescription()      { return description; }
+            @Override public TrainingCategory getCategory() { return category; }
         };
     }
 }

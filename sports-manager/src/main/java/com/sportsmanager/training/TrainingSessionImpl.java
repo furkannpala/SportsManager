@@ -81,6 +81,9 @@ public class TrainingSessionImpl implements TrainingSession {
 
 
 
+    @Override
+    public TrainingCategory getCategory()      { return focus; }
+
     public TrainingCategory getFocus()         { return focus; }
     public Coach getAssignedCoach()            { return assignedCoach; }
     public List<TrainingLog> getSessionLog()   { return Collections.unmodifiableList(sessionLog); }
