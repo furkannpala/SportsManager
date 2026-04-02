@@ -74,6 +74,9 @@ public class Sidebar extends VBox {
             addNavButton("🏆  League Table", () -> {
                 ViewManager.getInstance().switchView(new StandingsView());
             });
+            addNavButton("💪  Training", () -> {
+                ViewManager.getInstance().switchView(new TrainingView());
+            });
 
             // Spacer
             Region spacer = new Region();

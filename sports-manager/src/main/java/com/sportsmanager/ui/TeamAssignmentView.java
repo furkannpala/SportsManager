@@ -12,211 +12,186 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 
-import java.util.*;
+import java.util.List;
 
 /**
- * Screen 2 — Team assignment: generates league, reveals user team.
+ * Screen 2 — Team selection: generates league, user picks their team.
  */
 public class TeamAssignmentView extends VBox {
 
     private final Sport sport;
     private List<Team> allTeams;
-    private Team userTeam;
+    private Team selectedTeam = null;
+
+    private VBox selectedCard = null;   // currently highlighted card
+    private Button beginSeason;
+    private Label selectionHint;
 
     public TeamAssignmentView(Sport sport) {
         this.sport = sport;
-        setAlignment(Pos.CENTER);
-        setSpacing(30);
+        setAlignment(Pos.TOP_CENTER);
+        setSpacing(24);
         setPadding(new Insets(40));
 
         generateTeams();
         buildUI();
     }
 
+    // ── Generation ────────────────────────────────────────────────────────────
+
     private void generateTeams() {
-        TeamGenerator generator = new TeamGenerator(sport, new FootballPlayerFactory(), new NameGenerator());
+        TeamGenerator generator = new TeamGenerator(
+                sport, new FootballPlayerFactory(), new NameGenerator());
         allTeams = generator.generateLeague();
-        Random rng = new Random();
-        userTeam = allTeams.get(rng.nextInt(allTeams.size()));
-    }
 
-    private void buildUI() {
-        // Header
-        Label header = new Label("Your Team Has Been Assigned!");
-        header.getStyleClass().add("title-label");
+        // Assign a unique random logo to each team
+        LogoManager.getInstance().assign(allTeams);
 
-        Label subheader = new Label("You will manage:");
-        subheader.getStyleClass().add("text-muted");
-        subheader.setStyle("-fx-font-size: 16px;");
-
-        // Team reveal card
-        VBox teamCard = new VBox(12);
-        teamCard.getStyleClass().addAll("card", "card-highlight");
-        teamCard.setAlignment(Pos.CENTER);
-        teamCard.setPadding(new Insets(30));
-        teamCard.setMaxWidth(400);
-
-        // Team initial/logo
-        String initial = userTeam.getTeamName().substring(0, 1).toUpperCase();
-        Label logoLabel = new Label(initial);
-        logoLabel.setStyle("-fx-font-size: 56px; -fx-font-weight: bold; -fx-text-fill: #00d2ff;"
-                + " -fx-background-color: #0f3460; -fx-background-radius: 50;"
-                + " -fx-min-width: 90; -fx-min-height: 90; -fx-max-width: 90; -fx-max-height: 90;"
-                + " -fx-alignment: center;");
-
-        Label teamName = new Label(userTeam.getTeamName());
-        teamName.setStyle("-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: white;");
-
-        // Star rating
-        double avgOverall = userTeam.getSquad().stream()
-                .mapToInt(Player::getOverallRating).average().orElse(0);
-        int stars = Math.max(1, Math.min(5, (int) Math.round(avgOverall / 20.0)));
-        Label starLabel = new Label("★".repeat(stars) + "☆".repeat(5 - stars));
-        starLabel.getStyleClass().add("star-rating");
-
-        // Stats
-        Label statsLabel = new Label("Squad: " + userTeam.getSquad().size() + " players  •  Avg Rating: "
-                + String.format("%.0f", avgOverall));
-        statsLabel.getStyleClass().add("text-muted");
-        statsLabel.setStyle("-fx-font-size: 13px;");
-
-        teamCard.getChildren().addAll(logoLabel, teamName, starLabel, statsLabel);
-
-        // Rivals section
-        VBox rivalsSection = new VBox(10);
-        rivalsSection.setAlignment(Pos.CENTER);
-        rivalsSection.setMaxWidth(500);
-
-        Label rivalsTitle = new Label("🏟️ Your Rivals");
-        rivalsTitle.getStyleClass().add("section-label");
-
-        HBox rivalsRow = new HBox(12);
-        rivalsRow.setAlignment(Pos.CENTER);
-
-        List<Team> sorted = new ArrayList<>(allTeams);
-        sorted.sort((a, b) -> {
+        // Sort strongest → weakest so best teams are visible first
+        allTeams.sort((a, b) -> {
             double avgA = a.getSquad().stream().mapToInt(Player::getOverallRating).average().orElse(0);
             double avgB = b.getSquad().stream().mapToInt(Player::getOverallRating).average().orElse(0);
             return Double.compare(avgB, avgA);
         });
-
-        int shown = 0;
-        for (Team t : sorted) {
-            if (t == userTeam) continue;
-            if (shown >= 4) break;
-            rivalsRow.getChildren().add(createRivalCard(t));
-            shown++;
-        }
-
-        rivalsSection.getChildren().addAll(rivalsTitle, rivalsRow);
-
-        // Buttons
-        HBox buttons = new HBox(16);
-        buttons.setAlignment(Pos.CENTER);
-
-        Button beginSeason = new Button("Begin Season");
-        beginSeason.getStyleClass().add("btn-primary");
-        beginSeason.setOnAction(e -> {
-            // Set default formation and tactic for all teams
-            if (!sport.getFormations().isEmpty()) {
-                for (Team t : allTeams) {
-                    if (t.getFormation() == null) t.setFormation(sport.getFormations().get(0));
-                }
-            }
-            if (!sport.getTactics().isEmpty()) {
-                for (Team t : allTeams) {
-                    if (t.getTactic() == null) t.setTactic(sport.getTactics().get(1)); // Balanced
-                }
-            }
-
-            GameManager.getInstance().initNewGame(sport, allTeams, userTeam);
-
-            Sidebar sidebar = new Sidebar();
-            ViewManager.getInstance().setSidebar(sidebar);
-
-            // Rebuild the root layout with sidebar
-            StackPane contentArea = new StackPane();
-            ViewManager.getInstance().setContentArea(contentArea);
-
-            HBox root = (HBox) getScene().getRoot();
-            root.getChildren().clear();
-            root.getChildren().addAll(sidebar, contentArea);
-            HBox.setHgrow(contentArea, Priority.ALWAYS);
-
-            ViewManager.getInstance().switchView(new DashboardView());
-        });
-
-        Button viewLeague = new Button("View Full League");
-        viewLeague.getStyleClass().add("btn-secondary");
-        viewLeague.setOnAction(e -> showAllTeams());
-
-        buttons.getChildren().addAll(beginSeason, viewLeague);
-
-        getChildren().addAll(header, subheader, teamCard, rivalsSection, buttons);
     }
 
-    private VBox createRivalCard(Team t) {
-        VBox card = new VBox(6);
-        card.getStyleClass().add("card");
-        card.setAlignment(Pos.CENTER);
-        card.setPadding(new Insets(12));
-        card.setPrefWidth(120);
+    // ── UI construction ───────────────────────────────────────────────────────
 
-        String init = t.getTeamName().substring(0, 1).toUpperCase();
-        Label logo = new Label(init);
-        logo.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #e94560;"
-                + " -fx-background-color: #1a1a2e; -fx-background-radius: 50;"
-                + " -fx-min-width: 48; -fx-min-height: 48; -fx-max-width: 48; -fx-max-height: 48;"
-                + " -fx-alignment: center; -fx-border-color: #e94560; -fx-border-radius: 50;");
+    private void buildUI() {
+        // Header
+        Label header = new Label("Choose Your Team");
+        header.getStyleClass().add("title-label");
 
-        Label name = new Label(t.getTeamName());
-        name.getStyleClass().add("text-normal");
-        name.setWrapText(true);
-        name.setStyle("-fx-text-alignment: center; -fx-font-size: 11px;");
+        selectionHint = new Label("Click on a team to select it");
+        selectionHint.getStyleClass().add("text-muted");
+        selectionHint.setStyle("-fx-font-size: 14px;");
 
-        double avg = t.getSquad().stream().mapToInt(Player::getOverallRating).average().orElse(0);
-        Label rating = new Label(String.format("%.0f OVR", avg));
-        rating.getStyleClass().add("text-muted");
-
-        card.getChildren().addAll(logo, name, rating);
-        return card;
-    }
-
-    private void showAllTeams() {
-        getChildren().clear();
-
-        Label title = new Label("All Teams");
-        title.getStyleClass().add("title-label");
-
-        Button back = new Button("← Back");
-        back.getStyleClass().add("btn-secondary");
-        back.setOnAction(e -> {
-            getChildren().clear();
-            buildUI();
-        });
-
-        HBox topBar = new HBox(20);
-        topBar.setAlignment(Pos.CENTER_LEFT);
-        topBar.getChildren().addAll(back, title);
-
-        FlowPane grid = new FlowPane(12, 12);
+        // Team grid
+        FlowPane grid = new FlowPane(16, 16);
         grid.setAlignment(Pos.CENTER);
-        grid.setPadding(new Insets(10));
+        grid.setPadding(new Insets(8));
 
         for (Team t : allTeams) {
-            VBox card = createRivalCard(t);
-            if (t == userTeam) {
-                card.getStyleClass().add("card-highlight");
-            }
-            grid.getChildren().add(card);
+            grid.getChildren().add(buildTeamCard(t));
         }
 
         ScrollPane scroll = new ScrollPane(grid);
         scroll.setFitToWidth(true);
+        scroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
         VBox.setVgrow(scroll, Priority.ALWAYS);
 
-        getChildren().addAll(topBar, scroll);
+        // Bottom bar
+        beginSeason = new Button("Begin Season");
+        beginSeason.getStyleClass().add("btn-primary");
+        beginSeason.setDisable(true);   // enabled after team selection
+        beginSeason.setOnAction(e -> startGame());
+
+        getChildren().addAll(header, selectionHint, scroll, beginSeason);
+    }
+
+    private VBox buildTeamCard(Team team) {
+        VBox card = new VBox(8);
+        card.getStyleClass().add("card");
+        card.setAlignment(Pos.CENTER);
+        card.setPadding(new Insets(16));
+        card.setPrefWidth(160);
+
+        // Logo — image if available, letter initial as fallback
+        javafx.scene.Node logoNode;
+        Image logoImg = LogoManager.getInstance().getLogo(team);
+        if (logoImg != null) {
+            ImageView iv = new ImageView(logoImg);
+            iv.setFitWidth(60);
+            iv.setFitHeight(60);
+            iv.setPreserveRatio(true);
+            logoNode = iv;
+        } else {
+            String initial = team.getTeamName().substring(0, 1).toUpperCase();
+            Label fallback = new Label(initial);
+            fallback.setStyle(
+                    "-fx-font-size: 32px; -fx-font-weight: bold; -fx-text-fill: #00d2ff;"
+                    + " -fx-background-color: #0f3460; -fx-background-radius: 50;"
+                    + " -fx-min-width: 60; -fx-min-height: 60; -fx-max-width: 60; -fx-max-height: 60;"
+                    + " -fx-alignment: center;");
+            logoNode = fallback;
+        }
+
+        Label name = new Label(team.getTeamName());
+        name.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: white;");
+        name.setWrapText(true);
+        name.setAlignment(Pos.CENTER);
+
+        double avg = team.getSquad().stream()
+                .mapToInt(Player::getOverallRating).average().orElse(0);
+        int stars = Math.max(1, Math.min(5, (int) Math.round(avg / 20.0)));
+
+        Label starLabel = new Label("★".repeat(stars) + "☆".repeat(5 - stars));
+        starLabel.getStyleClass().add("star-rating");
+
+        Label ovrLabel = new Label(String.format("%.0f OVR", avg));
+        ovrLabel.getStyleClass().add("text-muted");
+        ovrLabel.setStyle("-fx-font-size: 12px;");
+
+        card.getChildren().addAll(logoNode, name, starLabel, ovrLabel);
+
+        // Click to select
+        card.setOnMouseClicked(e -> selectTeam(team, card));
+        card.setStyle(card.getStyle() + " -fx-cursor: hand;");
+
+        return card;
+    }
+
+    // ── Selection logic ───────────────────────────────────────────────────────
+
+    private void selectTeam(Team team, VBox card) {
+        // Deselect previous
+        if (selectedCard != null) {
+            selectedCard.getStyleClass().remove("card-highlight");
+        }
+
+        selectedTeam = team;
+        selectedCard = card;
+        card.getStyleClass().add("card-highlight");
+
+        selectionHint.setText("Selected: " + team.getTeamName() + " — press Begin Season to start");
+        beginSeason.setDisable(false);
+    }
+
+    // ── Game start ────────────────────────────────────────────────────────────
+
+    private void startGame() {
+        if (selectedTeam == null) return;
+
+        // Apply default formation and tactic to all teams
+        if (!sport.getFormations().isEmpty()) {
+            for (Team t : allTeams) {
+                if (t.getFormation() == null) t.setFormation(sport.getFormations().get(0));
+            }
+        }
+        if (!sport.getTactics().isEmpty()) {
+            for (Team t : allTeams) {
+                if (t.getTactic() == null) t.setTactic(sport.getTactics().get(1)); // Balanced
+            }
+        }
+
+        GameManager.getInstance().initNewGame(sport, allTeams, selectedTeam);
+
+        // Rebuild root with sidebar
+        Sidebar sidebar = new Sidebar();
+        ViewManager.getInstance().setSidebar(sidebar);
+
+        StackPane contentArea = new StackPane();
+        ViewManager.getInstance().setContentArea(contentArea);
+
+        HBox root = (HBox) getScene().getRoot();
+        root.getChildren().clear();
+        root.getChildren().addAll(sidebar, contentArea);
+        HBox.setHgrow(contentArea, Priority.ALWAYS);
+
+        ViewManager.getInstance().switchView(new DashboardView());
     }
 }

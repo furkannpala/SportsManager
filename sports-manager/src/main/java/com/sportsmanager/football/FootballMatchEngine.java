@@ -17,13 +17,15 @@ public class FootballMatchEngine implements MatchEngine {
     private static final int    PERIODS          = 2;
     private static final int    PERIOD_DURATION  = 45;
     private static final double BASE_EVENT_PROB  = 0.18;  // per minute, per team
-    private static final double POST_INJURY_PROB = 0.04;  // chance of fatigue injury after match
+    private static final double POST_INJURY_PROB = 0.015; // chance of fatigue injury after match
 
     // Event type thresholds (cumulative)
+    // RED_CARD  : 0.01 of events → ~0.3 per match
+    // INJURY    : 0.02 of events → ~0.6 per match  (was 0.05 → ~1.6)
     private static final double T_GOAL        = 0.08;
     private static final double T_YELLOW      = 0.23;
-    private static final double T_RED         = 0.26;
-    private static final double T_INJURY      = 0.31;
+    private static final double T_RED         = 0.24;
+    private static final double T_INJURY      = 0.26;
     private static final double T_OFFSIDE     = 0.51;
     // remainder → FOUL
 

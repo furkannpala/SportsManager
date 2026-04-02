@@ -7,6 +7,7 @@ import com.sportsmanager.game.SeasonState;
 import com.sportsmanager.league.*;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -227,7 +228,7 @@ public class DashboardView extends VBox {
         // Home team
         VBox homeBox = new VBox(4);
         homeBox.setAlignment(Pos.CENTER);
-        Label homeLogo = createTeamLogo(home);
+        Node homeLogo = createTeamLogo(home);
         Label homeName = new Label(home.getTeamName());
         homeName.getStyleClass().add("text-normal");
         homeName.setStyle("-fx-font-weight: bold;");
@@ -239,7 +240,7 @@ public class DashboardView extends VBox {
         // Away team
         VBox awayBox = new VBox(4);
         awayBox.setAlignment(Pos.CENTER);
-        Label awayLogo = createTeamLogo(away);
+        Node awayLogo = createTeamLogo(away);
         Label awayName = new Label(away.getTeamName());
         awayName.getStyleClass().add("text-normal");
         awayName.setStyle("-fx-font-weight: bold;");
@@ -384,14 +385,8 @@ public class DashboardView extends VBox {
         return card;
     }
 
-    private Label createTeamLogo(Team team) {
-        String init = team.getTeamName().substring(0, 1).toUpperCase();
-        Label logo = new Label(init);
-        logo.setStyle("-fx-font-size: 28px; -fx-font-weight: bold; -fx-text-fill: #00d2ff;"
-                + " -fx-background-color: #0f3460; -fx-background-radius: 50;"
-                + " -fx-min-width: 56; -fx-min-height: 56; -fx-max-width: 56; -fx-max-height: 56;"
-                + " -fx-alignment: center;");
-        return logo;
+    private Node createTeamLogo(Team team) {
+        return LogoManager.getInstance().createLogoNode(team, 56);
     }
 
     private String getPositionSuffix(int pos) {

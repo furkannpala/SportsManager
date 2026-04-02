@@ -100,13 +100,11 @@ public class TeamGenerator {
     private List<TierSpec> buildTierSpecs() {
         List<TierSpec> tiers = new ArrayList<>();
 
-        tiers.add(new TierSpec(3, 82));
-
-        tiers.add(new TierSpec(6, 74));
-
-        tiers.add(new TierSpec(6, 64));
-
-        tiers.add(new TierSpec(5, 54));
+        tiers.add(new TierSpec(2, 88));  // Elite — title contenders
+        tiers.add(new TierSpec(4, 79));  // Strong — top-half
+        tiers.add(new TierSpec(5, 70));  // Mid-table
+        tiers.add(new TierSpec(5, 61));  // Lower-mid
+        tiers.add(new TierSpec(4, 50));  // Relegation zone
         return tiers;
     }
 

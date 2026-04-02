@@ -6,6 +6,7 @@ import com.sportsmanager.game.SeasonState;
 import com.sportsmanager.league.*;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
@@ -119,11 +120,14 @@ public class FixtureView extends VBox {
         }
 
         // Home team
+        Node homeLogo = LogoManager.getInstance().createLogoNode(m.getHomeTeam(), 28);
         Label homeName = new Label(m.getHomeTeam().getTeamName());
         homeName.getStyleClass().add("text-normal");
         homeName.setStyle("-fx-font-weight: bold;");
-        homeName.setMinWidth(160);
         homeName.setAlignment(Pos.CENTER_RIGHT);
+        HBox homeBox = new HBox(8, homeLogo, homeName);
+        homeBox.setAlignment(Pos.CENTER_RIGHT);
+        homeBox.setMinWidth(180);
 
         // Score or preview
         Label scoreLbl;
@@ -139,12 +143,15 @@ public class FixtureView extends VBox {
         scoreLbl.setAlignment(Pos.CENTER);
 
         // Away team
+        Node awayLogo = LogoManager.getInstance().createLogoNode(m.getAwayTeam(), 28);
         Label awayName = new Label(m.getAwayTeam().getTeamName());
         awayName.getStyleClass().add("text-normal");
         awayName.setStyle("-fx-font-weight: bold;");
-        awayName.setMinWidth(160);
+        HBox awayBox = new HBox(8, awayName, awayLogo);
+        awayBox.setAlignment(Pos.CENTER_LEFT);
+        awayBox.setMinWidth(180);
 
-        card.getChildren().addAll(homeName, scoreLbl, awayName);
+        card.getChildren().addAll(homeBox, scoreLbl, awayBox);
 
         // Status icon
         if (m.getStatus() == MatchStatus.FINISHED) {

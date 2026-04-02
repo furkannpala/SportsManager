@@ -100,14 +100,32 @@ public class FootballLeague implements ILeague {
 
         for (Match match : weekData.getMatches()) {
             if (match.getStatus() == MatchStatus.UNPLAYED) {
-                MatchResult result = engine.simulateMatch(
-                        match.getHomeTeam(), match.getAwayTeam());
+                MatchResult result = resolveMatch(engine, match);
                 match.setResult(result);
                 match.setStatus(MatchStatus.FINISHED);
                 standings.update(match);
             }
         }
         weekData.setCompleted(true);
+    }
+
+    /**
+     * Resolves a match: if either team has fewer than 11 available players,
+     * that team forfeits 0-3. If both are short, the match ends 0-0 (mutual forfeit).
+     * Otherwise the match is simulated normally.
+     */
+    private MatchResult resolveMatch(MatchEngine engine, Match match) {
+        int homeAvailable = match.getHomeTeam().getAvailablePlayers().size();
+        int awayAvailable = match.getAwayTeam().getAvailablePlayers().size();
+
+        if (homeAvailable < 11 && awayAvailable < 11) {
+            return new MatchResult(0, 0, List.of()); // mutual forfeit
+        } else if (homeAvailable < 11) {
+            return new MatchResult(0, 3, List.of()); // home forfeit
+        } else if (awayAvailable < 11) {
+            return new MatchResult(3, 0, List.of()); // away forfeit
+        }
+        return engine.simulateMatch(match.getHomeTeam(), match.getAwayTeam());
     }
 
 

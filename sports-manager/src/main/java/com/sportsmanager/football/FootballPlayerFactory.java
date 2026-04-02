@@ -8,7 +8,7 @@ import java.util.Random;
 
 public class FootballPlayerFactory implements PlayerFactory {
 
-    private static final int STD_DEV  = 8;   // spread around tierMean
+    private static final int STD_DEV  = 10;  // spread around tierMean
     private static final int MIN_ATTR = 1;
     private static final int MAX_ATTR = 100;
 

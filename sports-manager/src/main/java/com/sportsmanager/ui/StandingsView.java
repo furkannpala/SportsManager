@@ -10,6 +10,7 @@ import javafx.geometry.Pos;
 import javafx.scene.control.Label;
 import javafx.scene.control.ScrollPane;
 import javafx.scene.layout.*;
+import javafx.scene.Node;
 
 import java.util.List;
 
@@ -78,19 +79,25 @@ public class StandingsView extends VBox {
             String posText = (i == 0) ? "🏆" : String.valueOf(i + 1);
             Label posLabel = cell(posText, 35, false);
 
-            Label teamLabel = cell(team.getTeamName(), 180, false);
+            // Logo + name in an HBox
+            Node logoNode = LogoManager.getInstance().createLogoNode(team, 24);
+            Label teamLabel = cell(team.getTeamName(), 148, false);
             if (isUser) {
                 teamLabel.setStyle("-fx-text-fill: #00d2ff; -fx-font-weight: bold; -fx-font-size: 13px;");
             } else {
                 teamLabel.setStyle("-fx-font-weight: bold; -fx-font-size: 13px;");
             }
+            HBox teamCell = new HBox(8, logoNode, teamLabel);
+            teamCell.setAlignment(Pos.CENTER_LEFT);
+            teamCell.setMinWidth(180);
+            teamCell.setMaxWidth(180);
 
             Label ptsLabel = cell(String.valueOf(rec.getPoints()), 45, false);
             ptsLabel.setStyle("-fx-text-fill: #ffd740; -fx-font-weight: bold; -fx-font-size: 13px;");
 
             row.getChildren().addAll(
                     posLabel,
-                    teamLabel,
+                    teamCell,
                     cell(String.valueOf(rec.getPlayed()), 35, false),
                     cell(String.valueOf(rec.getWon()), 35, false),
                     cell(String.valueOf(rec.getDrawn()), 35, false),
