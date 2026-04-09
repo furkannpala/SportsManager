@@ -3,7 +3,9 @@ package com.sportsmanager.league;
 import com.sportsmanager.core.ISportRuleSet;
 import com.sportsmanager.core.Team;
 
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -14,7 +16,6 @@ public class Standings {
 
     private final Map<Team, TeamRecord> records;
     private final ISportRuleSet ruleSet;
-    private final Random random = new Random();
 
     public Standings(ISportRuleSet ruleSet, List<Team> teams) {
         this.ruleSet = ruleSet;
@@ -109,8 +110,8 @@ public class Standings {
         d = rb.getH2HGoalDifference(a) - ra.getH2HGoalDifference(b);
         if (d != 0) return d;
 
-        // 5. Fair Play / Coin toss
-        return random.nextBoolean() ? 1 : -1;
+        // 5. Alphabetical by team name (deterministic fallback)
+        return a.getTeamName().compareTo(b.getTeamName());
     }
 
     /** Resets all records (new season). */

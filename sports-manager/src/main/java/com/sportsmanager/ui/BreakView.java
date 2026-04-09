@@ -1,104 +1,157 @@
 package com.sportsmanager.ui;
 
 import com.sportsmanager.core.*;
+import com.sportsmanager.football.FootballEventType;
+import com.sportsmanager.football.FootballMatchEvent;
 import com.sportsmanager.game.GameManager;
 import com.sportsmanager.game.SeasonState;
 import com.sportsmanager.league.FootballLeague;
 import com.sportsmanager.league.Match;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
+import javafx.scene.shape.Rectangle;
 
+import java.util.Comparator;
 import java.util.List;
 
 /**
- * Screen 7 — Half-time / quarter break view with substitutions and tactic changes.
+ * Screen 7 — Half-time break: minimal timeline + buttons for substitutions and tactics.
  */
 public class BreakView extends VBox {
 
     private final SeasonState state;
-    private final Match match;
-    private final MatchState matchState;
-    private final MatchEngine engine;
-    private final Team userTeam;
-    private Label subsRemainingLabel;
-    private Label errorLabel;
+    final Match match;
+    final MatchState matchState;
+    final MatchEngine engine;
 
     public BreakView(Match match, MatchState matchState, MatchEngine engine) {
-        this.state = GameManager.getInstance().getState();
-        this.match = match;
+        this.state      = GameManager.getInstance().getState();
+        this.match      = match;
         this.matchState = matchState;
-        this.engine = engine;
-        this.userTeam = state.getUserTeam();
+        this.engine     = engine;
         setSpacing(16);
-        setPadding(new Insets(20));
+        setPadding(new Insets(24));
         buildUI();
     }
 
     private void buildUI() {
-        Team home = match.getHomeTeam();
-        Team away = match.getAwayTeam();
+        Team home  = match.getHomeTeam();
+        Team away  = match.getAwayTeam();
         Sport sport = state.getCurrentSport();
+        Team user  = state.getUserTeam();
 
-        // Score header
-        HBox scoreHeader = new HBox(16);
-        scoreHeader.setAlignment(Pos.CENTER);
-        scoreHeader.getStyleClass().add("scoreboard");
+        // ── Score header ────────────────────────────────────────────────────────
+        Label halftimeLabel = new Label("Half-Time Break");
+        halftimeLabel.getStyleClass().add("text-muted");
+        halftimeLabel.setStyle("-fx-font-size: 13px;");
+        halftimeLabel.setAlignment(Pos.CENTER);
+        halftimeLabel.setMaxWidth(Double.MAX_VALUE);
+
+        HBox scoreRow = new HBox(20);
+        scoreRow.setAlignment(Pos.CENTER);
+        scoreRow.getStyleClass().add("scoreboard");
 
         Label homeName = new Label(home.getTeamName());
-        homeName.setStyle("-fx-text-fill: #00d2ff; -fx-font-size: 16px; -fx-font-weight: bold;");
-        Label score = new Label(matchState.getHomeScore() + " - " + matchState.getAwayScore());
-        score.getStyleClass().add("score-text");
-        score.setStyle("-fx-font-size: 36px;");
+        homeName.setStyle("-fx-text-fill: #00d2ff; -fx-font-size: 18px; -fx-font-weight: bold;");
+        Label scoreLabel = new Label(matchState.getHomeScore() + " - " + matchState.getAwayScore());
+        scoreLabel.getStyleClass().add("score-text");
         Label awayName = new Label(away.getTeamName());
-        awayName.setStyle("-fx-text-fill: #e94560; -fx-font-size: 16px; -fx-font-weight: bold;");
+        awayName.setStyle("-fx-text-fill: #e94560; -fx-font-size: 18px; -fx-font-weight: bold;");
+        scoreRow.getChildren().addAll(homeName, scoreLabel, awayName);
 
-        Label periodInfo = new Label("Half-Time Break");
-        periodInfo.getStyleClass().add("text-muted");
-        periodInfo.setStyle("-fx-font-size: 14px;");
+        // ── Minimal timeline ────────────────────────────────────────────────────
+        VBox timelineCard = new VBox(4);
+        timelineCard.getStyleClass().add("card");
+        timelineCard.setPadding(new Insets(12));
 
-        VBox scoreBox = new VBox(4);
-        scoreBox.setAlignment(Pos.CENTER);
-        HBox scoreRow = new HBox(16);
-        scoreRow.setAlignment(Pos.CENTER);
-        scoreRow.getChildren().addAll(homeName, score, awayName);
-        scoreBox.getChildren().addAll(scoreRow, periodInfo);
-        scoreHeader.getChildren().add(scoreBox);
+        // Column headers
+        HBox colHeaders = new HBox();
+        Label homeHeader = new Label(home.getTeamName());
+        homeHeader.getStyleClass().add("text-muted");
+        homeHeader.setStyle("-fx-font-size: 11px;");
+        homeHeader.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(homeHeader, Priority.ALWAYS);
 
-        // Content: Sub panel + Tactic panel + Summary
-        HBox content = new HBox(16);
-        VBox.setVgrow(content, Priority.ALWAYS);
+        Label awayHeader = new Label(away.getTeamName());
+        awayHeader.getStyleClass().add("text-muted");
+        awayHeader.setStyle("-fx-font-size: 11px;");
+        awayHeader.setAlignment(Pos.CENTER_RIGHT);
+        awayHeader.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(awayHeader, Priority.ALWAYS);
+        colHeaders.getChildren().addAll(homeHeader, awayHeader);
+        timelineCard.getChildren().add(colHeaders);
 
-        // Substitution panel
-        VBox subPanel = createSubstitutionPanel(sport);
-        HBox.setHgrow(subPanel, Priority.ALWAYS);
+        // Separator
+        Region sep = new Region();
+        sep.setStyle("-fx-background-color: #333355;");
+        sep.setPrefHeight(1);
+        sep.setMaxWidth(Double.MAX_VALUE);
+        timelineCard.getChildren().add(sep);
 
-        // Tactic panel
-        VBox tacticPanel = createTacticPanel(sport);
+        // Events
+        List<MatchEvent> events = matchState.getEvents().stream()
+                .filter(e -> e instanceof FootballMatchEvent fme && isKeyEvent(fme.getEventType()))
+                .sorted(Comparator.comparingInt(MatchEvent::getMinute))
+                .toList();
 
-        // Period summary
-        VBox summaryPanel = createPeriodSummary();
-        HBox.setHgrow(summaryPanel, Priority.ALWAYS);
+        if (events.isEmpty()) {
+            Label none = new Label("No key events this half.");
+            none.getStyleClass().add("text-muted");
+            none.setStyle("-fx-font-size: 12px;");
+            none.setMaxWidth(Double.MAX_VALUE);
+            none.setAlignment(Pos.CENTER);
+            timelineCard.getChildren().add(none);
+        } else {
+            for (MatchEvent ev : events) {
+                FootballMatchEvent fme = (FootballMatchEvent) ev;
+                boolean isHome = fme.getTeamId().equals(home.getTeamId());
+                timelineCard.getChildren().add(buildMinimalRow(fme, isHome));
+            }
+        }
 
-        content.getChildren().addAll(subPanel, tacticPanel, summaryPanel);
+        ScrollPane scroll = new ScrollPane(timelineCard);
+        scroll.setFitToWidth(true);
+        scroll.setPrefHeight(200);
+        VBox.setVgrow(scroll, Priority.ALWAYS);
 
-        // Continue button
-        HBox controlBar = new HBox(12);
-        controlBar.setAlignment(Pos.CENTER);
+        // ── Action buttons (substitutions + tactics) ────────────────────────────
+        int maxSubs  = sport.getMaxSubstitutions();
+        boolean isHomeTeam = user == home;
+        int usedSubs = isHomeTeam ? matchState.getHomeSubsUsed() : matchState.getAwaySubsUsed();
+        int remaining = maxSubs - usedSubs;
 
+        Button subsBtn = new Button("Substitutions  (" + remaining + " left)");
+        subsBtn.getStyleClass().add("btn-secondary");
+        subsBtn.setMaxWidth(Double.MAX_VALUE);
+        subsBtn.setOnAction(e ->
+                ViewManager.getInstance().switchView(new SubstitutionView(match, matchState, engine)));
+
+        Button tacticsBtn = new Button("Tactics");
+        tacticsBtn.getStyleClass().add("btn-secondary");
+        tacticsBtn.setMaxWidth(Double.MAX_VALUE);
+        tacticsBtn.setOnAction(e ->
+                ViewManager.getInstance().switchView(new TacticsView(match, matchState, engine)));
+
+        HBox actionRow = new HBox(12, subsBtn, tacticsBtn);
+        actionRow.setAlignment(Pos.CENTER);
+        HBox.setHgrow(subsBtn, Priority.ALWAYS);
+        HBox.setHgrow(tacticsBtn, Priority.ALWAYS);
+
+        // ── Control buttons ─────────────────────────────────────────────────────
         Button continueBtn = new Button("▶ Continue Match");
         continueBtn.getStyleClass().add("btn-primary");
         continueBtn.setOnAction(e -> {
             matchState.setPeriodOver(false);
-            engine.simulatePeriod(matchState, match.getHomeTeam(), match.getAwayTeam());
-
+            engine.simulatePeriod(matchState, home, away);
             if (matchState.isMatchOver()) {
-                // Show match end in LiveMatchView
-                LiveMatchView lmv = new LiveMatchView(match);
-                ViewManager.getInstance().switchView(lmv);
+                MatchResult result = engine.finalizeMatch(matchState);
+                finishMatch(result);
             } else if (matchState.isPeriodOver()) {
-                // Another break
                 ViewManager.getInstance().switchView(new BreakView(match, matchState, engine));
             }
         });
@@ -106,199 +159,118 @@ public class BreakView extends VBox {
         Button simToEnd = new Button("⏩ Simulate to End");
         simToEnd.getStyleClass().add("btn-secondary");
         simToEnd.setOnAction(e -> {
-            MatchResult result = engine.simulateToEnd(matchState, match.getHomeTeam(), match.getAwayTeam());
+            MatchResult result = engine.simulateToEnd(matchState, home, away);
             finishMatch(result);
         });
 
-        controlBar.getChildren().addAll(continueBtn, simToEnd);
+        HBox controlRow = new HBox(12, continueBtn, simToEnd);
+        controlRow.setAlignment(Pos.CENTER);
 
-        getChildren().addAll(scoreHeader, content, controlBar);
+        getChildren().addAll(halftimeLabel, scoreRow, scroll, actionRow, controlRow);
     }
 
-    private VBox createSubstitutionPanel(Sport sport) {
-        VBox panel = new VBox(10);
-        panel.getStyleClass().add("card");
+    private HBox buildMinimalRow(FootballMatchEvent fme, boolean isHome) {
+        HBox row = new HBox(8);
+        row.setPadding(new Insets(2, 0, 2, 0));
+        row.setAlignment(Pos.CENTER);
 
-        Label title = new Label("🔄 Substitutions");
-        title.getStyleClass().add("section-label");
+        Node icon = createIcon(fme.getEventType());
 
-        boolean isHome = userTeam == match.getHomeTeam();
-        int maxSubs = sport.getMaxSubstitutions();
-        int usedSubs = isHome ? matchState.getHomeSubsUsed() : matchState.getAwaySubsUsed();
+        Label text = new Label(fme.getDescription());
+        text.setWrapText(true);
+        text.setStyle(descStyle(fme.getEventType()));
+        text.setMaxWidth(Double.MAX_VALUE);
 
-        subsRemainingLabel = new Label("Remaining: " + (maxSubs - usedSubs) + " / " + maxSubs);
-        subsRemainingLabel.getStyleClass().add("text-muted");
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        // Player Out selector
-        Label outLabel = new Label("Player Out:");
-        outLabel.getStyleClass().add("text-muted");
-
-        ComboBox<String> outBox = new ComboBox<>();
-        List<Player> fieldPlayers = isHome ? matchState.getHomeFieldPlayers() : matchState.getAwayFieldPlayers();
-        for (Player p : fieldPlayers) {
-            String fatigue = p.getAge() > 30 ? " (Tired)" : " (Fresh)";
-            outBox.getItems().add(p.getName() + fatigue);
+        if (isHome) {
+            HBox.setHgrow(text, Priority.SOMETIMES);
+            row.getChildren().addAll(icon, text, spacer);
+        } else {
+            text.setAlignment(Pos.CENTER_RIGHT);
+            HBox.setHgrow(text, Priority.SOMETIMES);
+            row.getChildren().addAll(spacer, text, icon);
         }
-        outBox.setMaxWidth(Double.MAX_VALUE);
-
-        // Player In selector
-        Label inLabel = new Label("Player In:");
-        inLabel.getStyleClass().add("text-muted");
-
-        ComboBox<String> inBox = new ComboBox<>();
-        for (Player p : userTeam.getSquad()) {
-            if (!fieldPlayers.contains(p) && p.isAvailable()) {
-                inBox.getItems().add(p.getName() + " (OVR " + p.getOverallRating() + ")");
-            }
-        }
-        inBox.setMaxWidth(Double.MAX_VALUE);
-
-        // Error label
-        errorLabel = new Label("");
-        errorLabel.setStyle("-fx-text-fill: #ff5252; -fx-font-size: 12px;");
-
-        Button subBtn = new Button("Make Substitution");
-        subBtn.getStyleClass().add("btn-secondary");
-        subBtn.setOnAction(e -> {
-            int outIdx = outBox.getSelectionModel().getSelectedIndex();
-            int inIdx = inBox.getSelectionModel().getSelectedIndex();
-            if (outIdx < 0 || inIdx < 0) {
-                errorLabel.setText("Select both players");
-                return;
-            }
-
-            Player outPlayer = fieldPlayers.get(outIdx);
-
-            // Find the bench player
-            int benchIdx = 0;
-            Player inPlayer = null;
-            for (Player p : userTeam.getSquad()) {
-                if (!fieldPlayers.contains(p) && p.isAvailable()) {
-                    if (benchIdx == inIdx) {
-                        inPlayer = p;
-                        break;
-                    }
-                    benchIdx++;
-                }
-            }
-
-            if (inPlayer == null) {
-                errorLabel.setText("Invalid player selection");
-                return;
-            }
-
-            boolean success = matchState.makeSubstitution(userTeam.getTeamId(), outPlayer, inPlayer, maxSubs);
-            if (success) {
-                errorLabel.setText("");
-                // Rebuild the panel
-                ViewManager.getInstance().switchView(new BreakView(match, matchState, engine));
-            } else {
-                errorLabel.setText("Substitution failed — no subs remaining or invalid");
-            }
-        });
-
-        panel.getChildren().addAll(title, subsRemainingLabel, outLabel, outBox, inLabel, inBox, subBtn, errorLabel);
-        return panel;
+        return row;
     }
 
-    private VBox createTacticPanel(Sport sport) {
-        VBox panel = new VBox(10);
-        panel.getStyleClass().add("card");
-        panel.setPrefWidth(250);
-
-        Label title = new Label("⚙️ Tactics");
-        title.getStyleClass().add("section-label");
-        panel.getChildren().add(title);
-
-        // Formation
-        Label formLabel = new Label("Formation");
-        formLabel.getStyleClass().add("text-muted");
-
-        ComboBox<String> formationBox = new ComboBox<>();
-        for (Formation f : sport.getFormations()) {
-            formationBox.getItems().add(f.getFormationName());
-        }
-        if (userTeam.getFormation() != null) {
-            formationBox.setValue(userTeam.getFormation().getFormationName());
-        }
-        formationBox.setMaxWidth(Double.MAX_VALUE);
-        formationBox.setOnAction(e -> {
-            String sel = formationBox.getValue();
-            for (Formation f : sport.getFormations()) {
-                if (f.getFormationName().equals(sel)) {
-                    userTeam.setFormation(f);
-                    break;
-                }
+    private Node createIcon(FootballEventType type) {
+        return switch (type) {
+            case GOAL -> {
+                Circle ball = new Circle(9);
+                ball.setFill(Color.web("#1a1a2e"));
+                ball.setStroke(Color.web("#00e676"));
+                ball.setStrokeWidth(2.5);
+                Circle inner = new Circle(4);
+                inner.setFill(Color.web("#00e676"));
+                StackPane sp = new StackPane(ball, inner);
+                sp.setMinSize(20, 20);
+                sp.setMaxSize(20, 20);
+                yield sp;
             }
-        });
-
-        panel.getChildren().addAll(formLabel, formationBox);
-
-        // Tactic buttons
-        Label tacticLabel = new Label("Playing Style");
-        tacticLabel.getStyleClass().add("text-muted");
-        tacticLabel.setPadding(new Insets(8, 0, 0, 0));
-        panel.getChildren().add(tacticLabel);
-
-        for (Tactic t : sport.getTactics()) {
-            Button btn = new Button(t.getTacticName());
-            btn.getStyleClass().add("btn-tactic");
-            btn.setMaxWidth(Double.MAX_VALUE);
-            if (userTeam.getTactic() != null && userTeam.getTactic().getTacticName().equals(t.getTacticName())) {
-                btn.getStyleClass().add("btn-tactic-active");
+            case YELLOW_CARD -> {
+                Rectangle card = new Rectangle(12, 17);
+                card.setFill(Color.web("#ffd740"));
+                card.setArcWidth(3);
+                card.setArcHeight(3);
+                StackPane sp = new StackPane(card);
+                sp.setMinSize(20, 20);
+                sp.setMaxSize(20, 20);
+                yield sp;
             }
-            btn.setOnAction(e -> {
-                userTeam.setTactic(t);
-                // Refresh
-                ViewManager.getInstance().switchView(new BreakView(match, matchState, engine));
-            });
-            panel.getChildren().add(btn);
-        }
-
-        return panel;
+            case RED_CARD -> {
+                Rectangle card = new Rectangle(12, 17);
+                card.setFill(Color.web("#ff5252"));
+                card.setArcWidth(3);
+                card.setArcHeight(3);
+                StackPane sp = new StackPane(card);
+                sp.setMinSize(20, 20);
+                sp.setMaxSize(20, 20);
+                yield sp;
+            }
+            case SUBSTITUTION -> {
+                Label up   = new Label("↑");
+                up.setStyle("-fx-text-fill: #00e676; -fx-font-size: 11px; -fx-font-weight: bold;");
+                Label down = new Label("↓");
+                down.setStyle("-fx-text-fill: #ff5252; -fx-font-size: 11px; -fx-font-weight: bold;");
+                VBox arrows = new VBox(up, down);
+                arrows.setAlignment(Pos.CENTER);
+                arrows.setMinSize(20, 20);
+                arrows.setMaxSize(20, 20);
+                yield arrows;
+            }
+            default -> {
+                StackPane sp = new StackPane();
+                sp.setMinSize(20, 20);
+                sp.setMaxSize(20, 20);
+                yield sp;
+            }
+        };
     }
 
-    private VBox createPeriodSummary() {
-        VBox panel = new VBox(8);
-        panel.getStyleClass().add("card");
-
-        Label title = new Label("📋 Period Summary");
-        title.getStyleClass().add("section-label");
-        panel.getChildren().add(title);
-
-        List<MatchEvent> events = matchState.getEvents();
-        boolean hasEvents = false;
-
-        for (MatchEvent ev : events) {
-            if (ev instanceof com.sportsmanager.football.FootballMatchEvent fme) {
-                if (fme.getEventType() == com.sportsmanager.football.FootballEventType.GOAL
-                        || fme.getEventType() == com.sportsmanager.football.FootballEventType.YELLOW_CARD
-                        || fme.getEventType() == com.sportsmanager.football.FootballEventType.RED_CARD) {
-                    Label eventLbl = new Label(ev.getDescription());
-                    eventLbl.getStyleClass().add("text-normal");
-                    eventLbl.setStyle("-fx-font-size: 12px;");
-                    eventLbl.setWrapText(true);
-                    panel.getChildren().add(eventLbl);
-                    hasEvents = true;
-                }
-            }
-        }
-
-        if (!hasEvents) {
-            Label noEvents = new Label("No key events yet");
-            noEvents.getStyleClass().add("text-muted");
-            panel.getChildren().add(noEvents);
-        }
-
-        return panel;
+    private String descStyle(FootballEventType type) {
+        return switch (type) {
+            case GOAL         -> "-fx-text-fill: #00e676; -fx-font-weight: bold; -fx-font-size: 12px;";
+            case YELLOW_CARD  -> "-fx-text-fill: #ffd740; -fx-font-size: 12px;";
+            case RED_CARD     -> "-fx-text-fill: #ff5252; -fx-font-weight: bold; -fx-font-size: 12px;";
+            case SUBSTITUTION -> "-fx-text-fill: #aaaacc; -fx-font-size: 12px;";
+            default           -> "-fx-font-size: 12px;";
+        };
     }
 
-    private void finishMatch(MatchResult result) {
+    private boolean isKeyEvent(FootballEventType type) {
+        return type == FootballEventType.GOAL
+                || type == FootballEventType.YELLOW_CARD
+                || type == FootballEventType.RED_CARD
+                || type == FootballEventType.SUBSTITUTION;
+    }
+
+    void finishMatch(MatchResult result) {
         SeasonState ss = GameManager.getInstance().getState();
         FootballLeague league = (FootballLeague) ss.getLeague();
         league.recordMatchResult(match, result);
 
-        // Play other matches
         int currentWeek = ss.getCurrentWeek();
         var fixture = ss.getCurrentFixture();
         if (currentWeek <= fixture.getTotalWeeks()) {
@@ -314,10 +286,9 @@ public class BreakView extends VBox {
         }
 
         GameManager.getInstance().advanceGameCycle();
-
         Sidebar sidebar = ViewManager.getInstance().getSidebar();
         if (sidebar != null) sidebar.refresh();
 
-        ViewManager.getInstance().switchView(new DashboardView());
+        ViewManager.getInstance().switchView(new MatchSummaryView(match, matchState));
     }
 }
