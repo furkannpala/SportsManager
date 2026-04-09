@@ -307,21 +307,6 @@ public class LiveMatchView extends VBox {
         Sidebar sidebar = ViewManager.getInstance().getSidebar();
         if (sidebar != null) sidebar.refresh();
 
-        // Show final score overlay
-        VBox endPanel = new VBox(12);
-        endPanel.setAlignment(Pos.CENTER);
-
-        Label finalLabel = new Label("Full Time!");
-        finalLabel.setStyle("-fx-font-size: 24px; -fx-font-weight: bold; -fx-text-fill: #ffd740;");
-
-        Label finalScore = new Label(matchState.getHomeScore() + " - " + matchState.getAwayScore());
-        finalScore.getStyleClass().add("score-text");
-
-        Button backBtn = new Button("Back to Dashboard");
-        backBtn.getStyleClass().add("btn-primary");
-        backBtn.setOnAction(e -> ViewManager.getInstance().switchView(new DashboardView()));
-
-        endPanel.getChildren().addAll(finalLabel, finalScore, backBtn);
-        controlsBox.getChildren().add(endPanel);
+        ViewManager.getInstance().switchView(new MatchSummaryView(match, matchState));
     }
 }

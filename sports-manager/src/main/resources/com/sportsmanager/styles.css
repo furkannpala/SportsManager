@@ -372,6 +372,7 @@
 }
 
 .standings-row-user {
+    -fx-padding: 8 12;
     -fx-background-color: derive(-sm-blue, -20%);
     -fx-border-color: transparent transparent -sm-cyan transparent;
     -fx-border-width: 0 0 2 0;
