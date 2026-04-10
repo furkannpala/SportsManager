@@ -10,6 +10,7 @@ public class FootballMatchEvent implements MatchEvent {
     private final Player involvedPlayer;
     private final Player secondaryPlayer;   // nullable — e.g. assister on a GOAL
     private final String teamId;
+    private final boolean secondYellow;     // true when red card is caused by two yellows
 
     public FootballMatchEvent(FootballEventType eventType,
                               int minute,
@@ -21,12 +22,25 @@ public class FootballMatchEvent implements MatchEvent {
         this.involvedPlayer  = involvedPlayer;
         this.secondaryPlayer = secondaryPlayer;
         this.teamId          = teamId;
+        this.secondYellow    = false;
     }
     public FootballMatchEvent(FootballEventType eventType,
                               int minute,
                               Player involvedPlayer,
                               String teamId) {
         this(eventType, minute, involvedPlayer, null, teamId);
+    }
+    public FootballMatchEvent(FootballEventType eventType,
+                              int minute,
+                              Player involvedPlayer,
+                              String teamId,
+                              boolean secondYellow) {
+        this.eventType       = eventType;
+        this.minute          = minute;
+        this.involvedPlayer  = involvedPlayer;
+        this.secondaryPlayer = null;
+        this.teamId          = teamId;
+        this.secondYellow    = secondYellow;
     }
     @Override
     public int getMinute() {
@@ -57,10 +71,12 @@ public class FootballMatchEvent implements MatchEvent {
                     : minute + "' GOAL — " + playerName;
             case ASSIST      -> minute + "' ASSIST — " + playerName;
             case YELLOW_CARD -> minute + "' YELLOW CARD — " + playerName;
-            case RED_CARD    -> minute + "' RED CARD — " + playerName;
+            case RED_CARD    -> secondYellow
+                    ? minute + "' RED CARD (2nd Yellow) — " + playerName
+                    : minute + "' RED CARD — " + playerName;
             case SUBSTITUTION -> secondaryPlayer != null
-                    ? minute + "' SUB — " + playerName + " off, " + secondaryPlayer.getName() + " on"
-                    : minute + "' SUB — " + playerName + " off";
+                    ? minute + "' ↕ SUB — ↓ " + playerName + "  ↑ " + secondaryPlayer.getName()
+                    : minute + "' ↕ SUB — ↓ " + playerName + " off";
             case INJURY      -> minute + "' INJURY — " + playerName;
             case OFFSIDE     -> minute + "' OFFSIDE — " + playerName;
             case FOUL        -> minute + "' FOUL — " + playerName;

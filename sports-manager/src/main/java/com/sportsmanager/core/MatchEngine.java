@@ -46,6 +46,12 @@ public interface MatchEngine {
     void simulatePeriod(MatchState state, Team home, Team away);
 
     /**
+     * Simulates exactly one minute of the current period.
+     * Sets periodOver / matchOver when the period ends.
+     */
+    void simulateMinute(MatchState state, Team home, Team away);
+
+    /**
      * Converts a finished MatchState into a MatchResult.
      * Should only be called when state.isMatchOver() == true.
      */

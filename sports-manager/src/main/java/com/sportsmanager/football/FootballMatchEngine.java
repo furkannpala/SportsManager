@@ -49,93 +49,111 @@ public class FootballMatchEngine implements MatchEngine {
 
     // Period-by-period
 
+    private static final int FIELD_SIZE = 11;
+
     @Override
     public MatchState initMatch(Team home, Team away) {
         MatchState state = new MatchState(PERIODS, home.getTeamId(), away.getTeamId());
-        for (Player p : home.getAvailablePlayers()) {
-            state.getHomeFieldPlayers().add(p);
-        }
-        for (Player p : away.getAvailablePlayers()) {
-            state.getAwayFieldPlayers().add(p);
-        }
-
+        distributeSquad(home.getAvailablePlayers(), state.getHomeFieldPlayers(), state.getHomeBenchPlayers());
+        distributeSquad(away.getAvailablePlayers(), state.getAwayFieldPlayers(), state.getAwayBenchPlayers());
         return state;
+    }
+
+    private void distributeSquad(List<Player> available, List<Player> field, List<Player> bench) {
+        for (int i = 0; i < available.size(); i++) {
+            if (i < FIELD_SIZE) field.add(available.get(i));
+            else                bench.add(available.get(i));
+        }
     }
 
     @Override
     public void simulatePeriod(MatchState state, Team home, Team away) {
         if (state.isMatchOver()) return;
+        state.setPeriodOver(false);
+        while (!state.isPeriodOver() && !state.isMatchOver()) {
+            simulateMinute(state, home, away);
+        }
+    }
 
-        state.setPeriodOver(false);   // clear the flag set by the previous period
+    @Override
+    public void simulateMinute(MatchState state, Team home, Team away) {
+        if (state.isMatchOver() || state.isPeriodOver()) return;
+
         int period = state.getCurrentPeriod();
-        int start  = (period - 1) * PERIOD_DURATION + 1;
         int end    = period * PERIOD_DURATION;
-        int from = Math.max(start, state.getCurrentMinute() + 1);
+        int minute = state.getCurrentMinute() + 1;
 
-        FootballTactic homeTactic = resolveTactic(home);
-        FootballTactic awayTactic = resolveTactic(away);
+        // Guard: skip past minutes already simulated
+        int start = (period - 1) * PERIOD_DURATION + 1;
+        if (minute < start) minute = start;
 
-        List<FootballPlayer> homePlayers = footballPlayers(state.getHomeFieldPlayers());
-        List<FootballPlayer> awayPlayers = footballPlayers(state.getAwayFieldPlayers());
+        state.setCurrentMinute(minute);
 
-        for (int minute = from; minute <= end; minute++) {
-            state.setCurrentMinute(minute);
+        FootballTactic homeTactic  = resolveTactic(home);
+        FootballTactic awayTactic  = resolveTactic(away);
+        List<FootballPlayer> homeP = footballPlayers(state.getHomeFieldPlayers());
+        List<FootballPlayer> awayP = footballPlayers(state.getAwayFieldPlayers());
 
-            double homeAtk = attackStrength(homePlayers, homeTactic, state.getHomeActivePlayers());
-            double awayAtk = attackStrength(awayPlayers, awayTactic, state.getAwayActivePlayers());
-            double homeDef = defenseStrength(homePlayers, homeTactic, state.getHomeActivePlayers());
-            double awayDef = defenseStrength(awayPlayers, awayTactic, state.getAwayActivePlayers());
+        double homeAtk = attackStrength(homeP, homeTactic, state.getHomeActivePlayers());
+        double awayAtk = attackStrength(awayP, awayTactic, state.getAwayActivePlayers());
+        double homeDef = defenseStrength(homeP, homeTactic, state.getHomeActivePlayers());
+        double awayDef = defenseStrength(awayP, awayTactic, state.getAwayActivePlayers());
 
-            // Home team attacks
-            double homeProb = BASE_EVENT_PROB * (1 + homeTactic.getGoalProbabilityModifier())
-                    * strengthFactor(homeAtk, awayDef);
-            if (random.nextDouble() < homeProb) {
-                FootballMatchEvent e = generateEvent(
-                        minute, homePlayers, awayPlayers,
-                        home.getTeamId(), homeAtk, awayDef);
-                if (e != null) {
-                    state.addEvent(e);
-                    if (e.getEventType() == FootballEventType.GOAL)     state.incrementHomeScore();
-                    if (e.getEventType() == FootballEventType.RED_CARD) {
+        // Home attacks
+        double homeProb = BASE_EVENT_PROB * (1 + homeTactic.getGoalProbabilityModifier())
+                * strengthFactor(homeAtk, awayDef);
+        if (random.nextDouble() < homeProb) {
+            state.addHomePossessionTick();
+            FootballMatchEvent e = generateEvent(minute, homeP, awayP, home.getTeamId(), homeAtk, awayDef, state, true);
+            if (e != null) {
+                state.addEvent(e);
+                if (e.getEventType() == FootballEventType.GOAL)     state.incrementHomeScore();
+                if (e.getEventType() == FootballEventType.RED_CARD) { state.decrementHomeActivePlayers(); removeSendOffPlayer(e, state.getHomeFieldPlayers()); }
+                if (e.getEventType() == FootballEventType.INJURY)   { removeSendOffPlayer(e, state.getHomeFieldPlayers()); }
+                if (e.getEventType() == FootballEventType.YELLOW_CARD) {
+                    if (state.recordYellowCard(e.getInvolvedPlayer())) {
+                        FootballMatchEvent red = new FootballMatchEvent(
+                                FootballEventType.RED_CARD, minute, e.getInvolvedPlayer(), home.getTeamId(), true);
+                        state.addEvent(red);
                         state.decrementHomeActivePlayers();
-                        removeSendOffPlayer(e, state.getHomeFieldPlayers());
-                    }
-                    if (e.getEventType() == FootballEventType.INJURY) {
-                        removeSendOffPlayer(e, state.getHomeFieldPlayers());
-                    }
-                }
-            }
-
-            // Away team attacks
-            double awayProb = BASE_EVENT_PROB * (1 + awayTactic.getGoalProbabilityModifier())
-                    * strengthFactor(awayAtk, homeDef);
-            if (random.nextDouble() < awayProb) {
-                FootballMatchEvent e = generateEvent(
-                        minute, awayPlayers, homePlayers,
-                        away.getTeamId(), awayAtk, homeDef);
-                if (e != null) {
-                    state.addEvent(e);
-                    if (e.getEventType() == FootballEventType.GOAL)     state.incrementAwayScore();
-                    if (e.getEventType() == FootballEventType.RED_CARD) {
-                        state.decrementAwayActivePlayers();
-                        removeSendOffPlayer(e, state.getAwayFieldPlayers());
-                    }
-                    if (e.getEventType() == FootballEventType.INJURY) {
-                        removeSendOffPlayer(e, state.getAwayFieldPlayers());
+                        removeSendOffPlayer(red, state.getHomeFieldPlayers());
                     }
                 }
             }
         }
 
-        if (period >= PERIODS) {
-            // Post-match fatigue injuries
-            applyPostMatchInjuries(homePlayers);
-            applyPostMatchInjuries(awayPlayers);
-            state.setMatchOver(true);
-            state.setPeriodOver(true);
-        } else {
-            state.setCurrentPeriod(period + 1);
-            state.setCurrentMinute(end);
+        // Away attacks
+        double awayProb = BASE_EVENT_PROB * (1 + awayTactic.getGoalProbabilityModifier())
+                * strengthFactor(awayAtk, homeDef);
+        if (random.nextDouble() < awayProb) {
+            state.addAwayPossessionTick();
+            FootballMatchEvent e = generateEvent(minute, awayP, homeP, away.getTeamId(), awayAtk, homeDef, state, false);
+            if (e != null) {
+                state.addEvent(e);
+                if (e.getEventType() == FootballEventType.GOAL)     state.incrementAwayScore();
+                if (e.getEventType() == FootballEventType.RED_CARD) { state.decrementAwayActivePlayers(); removeSendOffPlayer(e, state.getAwayFieldPlayers()); }
+                if (e.getEventType() == FootballEventType.INJURY)   { removeSendOffPlayer(e, state.getAwayFieldPlayers()); }
+                if (e.getEventType() == FootballEventType.YELLOW_CARD) {
+                    if (state.recordYellowCard(e.getInvolvedPlayer())) {
+                        FootballMatchEvent red = new FootballMatchEvent(
+                                FootballEventType.RED_CARD, minute, e.getInvolvedPlayer(), away.getTeamId(), true);
+                        state.addEvent(red);
+                        state.decrementAwayActivePlayers();
+                        removeSendOffPlayer(red, state.getAwayFieldPlayers());
+                    }
+                }
+            }
+        }
+
+        // Period / match end
+        if (minute >= end) {
+            if (period >= PERIODS) {
+                applyPostMatchInjuries(footballPlayers(state.getHomeFieldPlayers()));
+                applyPostMatchInjuries(footballPlayers(state.getAwayFieldPlayers()));
+                state.setMatchOver(true);
+            } else {
+                state.setCurrentPeriod(period + 1);
+            }
             state.setPeriodOver(true);
         }
     }
@@ -153,10 +171,13 @@ public class FootballMatchEngine implements MatchEngine {
                                               List<FootballPlayer> defenders,
                                               String teamId,
                                               double atkStrength,
-                                              double defStrength) {
+                                              double defStrength,
+                                              MatchState state,
+                                              boolean isHome) {
         double roll = random.nextDouble();
 
         if (roll < T_GOAL) {
+            if (isHome) state.incrementHomeShots(); else state.incrementAwayShots();
             return simulateGoal(minute, attackers, defenders, teamId, atkStrength, defStrength);
         } else if (roll < T_YELLOW) {
             FootballPlayer p = randomPlayer(attackers);
