@@ -103,6 +103,9 @@ public class LiveMatchView extends StackPane {
         overlayLayer.setStyle("-fx-background-color: rgba(10,10,30,0.82);");
 
         getChildren().addAll(main, overlayLayer);
+        // Disable sidebar navigation during a live match
+        Sidebar sidebar = ViewManager.getInstance().getSidebar();
+        if (sidebar != null) sidebar.setDisable(true);
     }
 
     private VBox buildMain() {
@@ -710,7 +713,7 @@ public class LiveMatchView extends StackPane {
 
         GameManager.getInstance().advanceGameCycle();
         Sidebar sidebar = ViewManager.getInstance().getSidebar();
-        if (sidebar != null) sidebar.refresh();
+        if (sidebar != null) { sidebar.setDisable(false); sidebar.refresh(); }
 
         ViewManager.getInstance().switchView(new MatchSummaryView(match, matchState));
     }

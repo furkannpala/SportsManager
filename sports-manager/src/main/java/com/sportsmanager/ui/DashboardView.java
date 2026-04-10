@@ -19,30 +19,33 @@ import java.util.List;
 /**
  * Screen 3 — Main dashboard after game starts.
  */
-public class DashboardView extends VBox {
+public class DashboardView extends StackPane {
 
     private final SeasonState state;
 
     public DashboardView() {
         this.state = GameManager.getInstance().getState();
-        setSpacing(20);
-        setPadding(new Insets(24));
 
         if (state == null) {
             getChildren().add(new Label("No game in progress."));
             return;
         }
 
-        // Check season end
+        // Main content lives in a VBox inside the StackPane
+        VBox main = new VBox(20);
+        main.setPadding(new Insets(24));
+        getChildren().add(main);
+
+        // Check season end — overlay sits on top of the StackPane
         if (GameManager.getInstance().isSeasonOver()) {
             showSeasonEndOverlay();
             return;
         }
 
-        buildUI();
+        buildUI(main);
     }
 
-    private void buildUI() {
+    private void buildUI(VBox root) {
         Team userTeam = state.getUserTeam();
         Standings standings = state.getCurrentStandings();
         Fixture fixture = state.getCurrentFixture();
@@ -111,7 +114,7 @@ public class DashboardView extends VBox {
         scroll.setFitToWidth(true);
         VBox.setVgrow(scroll, Priority.ALWAYS);
 
-        getChildren().add(scroll);
+        root.getChildren().add(scroll);
     }
 
     private VBox createSummaryCard(String title, String value, String subtitle) {
@@ -399,36 +402,53 @@ public class DashboardView extends VBox {
     }
 
     private void showSeasonEndOverlay() {
+        // Full-cover dim layer
         StackPane overlay = new StackPane();
-        overlay.getStyleClass().add("overlay-bg");
+        overlay.setStyle("-fx-background-color: rgba(5,5,20,0.88);");
+        StackPane.setAlignment(overlay, Pos.CENTER);
 
-        VBox overlayCard = new VBox(16);
-        overlayCard.getStyleClass().add("overlay-card");
-        overlayCard.setAlignment(Pos.CENTER);
-        overlayCard.setMaxWidth(500);
-        overlayCard.setMaxHeight(400);
+        // Modal card
+        VBox card = new VBox(20);
+        card.setAlignment(Pos.CENTER);
+        card.setMaxWidth(480);
+        card.setStyle(
+                "-fx-background-color: #12122a;" +
+                "-fx-background-radius: 14;" +
+                "-fx-border-color: #ffd740;" +
+                "-fx-border-width: 1.5;" +
+                "-fx-border-radius: 14;" +
+                "-fx-padding: 36;"
+        );
 
-        Label trophy = new Label("🏆");
-        trophy.setStyle("-fx-font-size: 64px;");
+        Label trophy = new Label("SEASON COMPLETE");
+        trophy.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #ffd740; -fx-letter-spacing: 2;");
 
-        Label title = new Label("Season " + state.getSeasonNumber() + " Complete!");
-        title.getStyleClass().add("title-label");
+        Label title = new Label("Season " + state.getSeasonNumber());
+        title.setStyle("-fx-font-size: 36px; -fx-font-weight: bold; -fx-text-fill: #ffffff;");
 
         Standings standings = state.getCurrentStandings();
         List<Team> sorted = standings.getSortedTeams();
         Team champion = sorted.isEmpty() ? null : sorted.get(0);
 
-        Label champLabel = new Label("Champion: " + (champion != null ? champion.getTeamName() : "—"));
-        champLabel.getStyleClass().add("subtitle-label");
-        champLabel.setStyle("-fx-text-fill: #ffd740;");
+        // Champion row
+        VBox champBox = new VBox(4);
+        champBox.setAlignment(Pos.CENTER);
+        champBox.setStyle("-fx-background-color: #1e1e40; -fx-background-radius: 8; -fx-padding: 12 24;");
+        Label champTitle = new Label("CHAMPION");
+        champTitle.setStyle("-fx-font-size: 11px; -fx-text-fill: #888; -fx-letter-spacing: 1;");
+        Label champName = new Label(champion != null ? champion.getTeamName() : "—");
+        champName.setStyle("-fx-font-size: 22px; -fx-font-weight: bold; -fx-text-fill: #ffd740;");
+        champBox.getChildren().addAll(champTitle, champName);
 
+        // User finish position
         int userPos = standings.getPosition(state.getUserTeam());
-        Label userLabel = new Label("Your team finished #" + userPos);
-        userLabel.getStyleClass().add("text-normal");
-        userLabel.setStyle("-fx-font-size: 16px;");
+        String suffix = getPositionSuffix(userPos);
+        Label userLabel = new Label("You finished " + userPos + suffix);
+        userLabel.setStyle("-fx-font-size: 15px; -fx-text-fill: #aaa;");
 
-        Button nextSeason = new Button("Next Season ▶");
+        Button nextSeason = new Button("Start Season " + (state.getSeasonNumber() + 1) + "  ▶");
         nextSeason.getStyleClass().add("btn-primary");
+        nextSeason.setMaxWidth(Double.MAX_VALUE);
         nextSeason.setOnAction(e -> {
             GameManager.getInstance().advanceSeason();
             Sidebar sidebar = ViewManager.getInstance().getSidebar();
@@ -436,8 +456,9 @@ public class DashboardView extends VBox {
             ViewManager.getInstance().switchView(new DashboardView());
         });
 
-        overlayCard.getChildren().addAll(trophy, title, champLabel, userLabel, nextSeason);
-        overlay.getChildren().add(overlayCard);
+        card.getChildren().addAll(trophy, title, champBox, userLabel, nextSeason);
+        overlay.getChildren().add(card);
         getChildren().add(overlay);
+        StackPane.setAlignment(card, Pos.CENTER);
     }
 }

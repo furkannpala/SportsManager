@@ -17,17 +17,22 @@ public class FootballMatchEngine implements MatchEngine {
     private static final int    PERIODS          = 2;
     private static final int    PERIOD_DURATION  = 45;
     private static final double BASE_EVENT_PROB  = 0.18;  // per minute, per team
-    private static final double POST_INJURY_PROB = 0.015; // chance of fatigue injury after match
+    private static final double POST_INJURY_PROB = 0.007; // fatigue injury after match (~1 per 3 matches total)
 
-    // Event type thresholds (cumulative)
-    // RED_CARD  : 0.01 of events → ~0.3 per match
-    // INJURY    : 0.02 of events → ~0.6 per match  (was 0.05 → ~1.6)
+    // Event type thresholds (cumulative, per 90 min × 0.18 ≈ 16 events/team)
+    // GOAL   : band 0.08  → ~1.3 goals/team
+    // YELLOW : band 0.049 → ~0.8 yellows/team  (~1-2 per match total)
+    // RED    : band 0.004 → very rare (~1 per 10+ matches)
+    // INJURY : band 0.006 → very rare in-match
+    // OFFSIDE: band 0.032 → ~2-3/team
+    // FOUL   : band 0.062 → ~3-4/team
+    // remainder → no loggable event
     private static final double T_GOAL        = 0.08;
-    private static final double T_YELLOW      = 0.23;
-    private static final double T_RED         = 0.24;
-    private static final double T_INJURY      = 0.26;
-    private static final double T_OFFSIDE     = 0.51;
-    // remainder → FOUL
+    private static final double T_YELLOW      = 0.12;
+    private static final double T_RED         = 0.13;
+    private static final double T_INJURY      = 0.14;
+    private static final double T_OFFSIDE     = 0.24;
+    private static final double T_FOUL        = 0.32;
 
     private final Random random;
 
@@ -108,10 +113,11 @@ public class FootballMatchEngine implements MatchEngine {
             if (e != null) {
                 state.addEvent(e);
                 if (e.getEventType() == FootballEventType.GOAL)     state.incrementHomeScore();
-                if (e.getEventType() == FootballEventType.RED_CARD) { state.decrementHomeActivePlayers(); removeSendOffPlayer(e, state.getHomeFieldPlayers()); }
+                if (e.getEventType() == FootballEventType.RED_CARD) { e.getInvolvedPlayer().applySuspension(generateSuspensionDuration()); state.decrementHomeActivePlayers(); removeSendOffPlayer(e, state.getHomeFieldPlayers()); }
                 if (e.getEventType() == FootballEventType.INJURY)   { removeSendOffPlayer(e, state.getHomeFieldPlayers()); }
                 if (e.getEventType() == FootballEventType.YELLOW_CARD) {
                     if (state.recordYellowCard(e.getInvolvedPlayer())) {
+                        e.getInvolvedPlayer().applySuspension(generateSuspensionDuration());
                         FootballMatchEvent red = new FootballMatchEvent(
                                 FootballEventType.RED_CARD, minute, e.getInvolvedPlayer(), home.getTeamId(), true);
                         state.addEvent(red);
@@ -131,10 +137,11 @@ public class FootballMatchEngine implements MatchEngine {
             if (e != null) {
                 state.addEvent(e);
                 if (e.getEventType() == FootballEventType.GOAL)     state.incrementAwayScore();
-                if (e.getEventType() == FootballEventType.RED_CARD) { state.decrementAwayActivePlayers(); removeSendOffPlayer(e, state.getAwayFieldPlayers()); }
+                if (e.getEventType() == FootballEventType.RED_CARD) { e.getInvolvedPlayer().applySuspension(generateSuspensionDuration()); state.decrementAwayActivePlayers(); removeSendOffPlayer(e, state.getAwayFieldPlayers()); }
                 if (e.getEventType() == FootballEventType.INJURY)   { removeSendOffPlayer(e, state.getAwayFieldPlayers()); }
                 if (e.getEventType() == FootballEventType.YELLOW_CARD) {
                     if (state.recordYellowCard(e.getInvolvedPlayer())) {
+                        e.getInvolvedPlayer().applySuspension(generateSuspensionDuration());
                         FootballMatchEvent red = new FootballMatchEvent(
                                 FootballEventType.RED_CARD, minute, e.getInvolvedPlayer(), away.getTeamId(), true);
                         state.addEvent(red);
@@ -196,10 +203,12 @@ public class FootballMatchEngine implements MatchEngine {
             FootballPlayer p = attackingPlayer(attackers);
             return p == null ? null
                     : new FootballMatchEvent(FootballEventType.OFFSIDE, minute, p, teamId);
-        } else {
+        } else if (roll < T_FOUL) {
             FootballPlayer p = randomPlayer(defenders);
             return p == null ? null
                     : new FootballMatchEvent(FootballEventType.FOUL, minute, p, teamId);
+        } else {
+            return null; // no loggable event this minute
         }
     }
 
@@ -315,6 +324,12 @@ public class FootballMatchEngine implements MatchEngine {
                 p.applyInjury(generateInjuryDuration());
             }
         }
+    }
+    private int generateSuspensionDuration() {
+        double roll = random.nextDouble();
+        if (roll < 0.60) return 2; // 1-match ban
+        if (roll < 0.90) return 3; // 2-match ban
+        return 4;                   // 3-match ban (rare)
     }
 
     private int generateInjuryDuration() {

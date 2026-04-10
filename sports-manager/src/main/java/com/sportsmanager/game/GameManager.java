@@ -1,5 +1,6 @@
 package com.sportsmanager.game;
 
+import com.sportsmanager.core.Player;
 import com.sportsmanager.core.Sport;
 import com.sportsmanager.core.Team;
 import com.sportsmanager.league.FootballLeague;
@@ -44,12 +45,20 @@ public class GameManager {
         if (state == null) return;
         state.getLeague().advanceWeek();
         state.setCurrentWeek(state.getCurrentWeek() + 1);
+        // Decrement injury and suspension counters for every player each week
+        for (Team team : state.getAllTeams()) {
+            for (Player player : team.getSquad()) {
+                player.decrementInjury();
+                player.decrementSuspension();
+            }
+        }
     }
 
 
     public void advanceSeason() {
         if (state == null) return;
         state.getCurrentStandings().resetAll();
+        footballLeague.resetWeek();
         footballLeague.generateFixture();
         state.setCurrentFixture(footballLeague.getFixture());
         state.setCurrentWeek(1);

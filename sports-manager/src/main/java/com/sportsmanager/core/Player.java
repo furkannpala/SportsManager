@@ -8,15 +8,18 @@ public abstract class Player {
 
 
     protected boolean injuryStatus;
-
-
     protected int injuryGamesRemaining;
+
+    protected boolean suspensionStatus;
+    protected int suspensionGamesRemaining;
 
     protected Player(String name, int age) {
         this.name = name;
         this.age = age;
         this.injuryStatus = false;
         this.injuryGamesRemaining = 0;
+        this.suspensionStatus = false;
+        this.suspensionGamesRemaining = 0;
     }
 
     // Abstract methods — implemented differently by each sport
@@ -32,7 +35,7 @@ public abstract class Player {
 
 
     public boolean isAvailable() {
-        return injuryGamesRemaining == 0;
+        return injuryGamesRemaining == 0 && suspensionGamesRemaining == 0;
     }
 
 
@@ -61,6 +64,30 @@ public abstract class Player {
 
     public int getAge() {
         return age;
+    }
+
+    public void applySuspension(int games) {
+        if (games > 0) {
+            this.suspensionStatus = true;
+            this.suspensionGamesRemaining = games;
+        }
+    }
+
+    public void decrementSuspension() {
+        if (suspensionGamesRemaining > 0) {
+            suspensionGamesRemaining--;
+            if (suspensionGamesRemaining == 0) {
+                suspensionStatus = false;
+            }
+        }
+    }
+
+    public boolean isSuspended() {
+        return suspensionStatus;
+    }
+
+    public int getSuspensionGamesRemaining() {
+        return suspensionGamesRemaining;
     }
 
     public boolean isInjured() {
