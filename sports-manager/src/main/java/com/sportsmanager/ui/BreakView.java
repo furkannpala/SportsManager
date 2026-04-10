@@ -147,13 +147,7 @@ public class BreakView extends VBox {
         continueBtn.getStyleClass().add("btn-primary");
         continueBtn.setOnAction(e -> {
             matchState.setPeriodOver(false);
-            engine.simulatePeriod(matchState, home, away);
-            if (matchState.isMatchOver()) {
-                MatchResult result = engine.finalizeMatch(matchState);
-                finishMatch(result);
-            } else if (matchState.isPeriodOver()) {
-                ViewManager.getInstance().switchView(new BreakView(match, matchState, engine));
-            }
+            ViewManager.getInstance().switchView(new LiveMatchView(match, matchState, engine));
         });
 
         Button simToEnd = new Button("⏩ Simulate to End");

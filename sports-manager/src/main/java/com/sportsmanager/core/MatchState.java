@@ -2,7 +2,9 @@ package com.sportsmanager.core;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The MatchEngine uses this object to pass state between periods so the UI can
@@ -31,8 +33,19 @@ public class MatchState {
     private int homeActivePlayers = 11;
     private int awayActivePlayers = 11;
 
+    // Yellow card tracker — used for two-yellows-equal-red logic
+    private final Map<Player, Integer> yellowCardCounts = new HashMap<>();
+
+    // Live stats
+    private int homeShots = 0;
+    private int awayShots = 0;
+    private int homePossessionTicks = 0;
+    private int awayPossessionTicks = 0;
+
     private final List<Player> homeFieldPlayers = new ArrayList<>();
     private final List<Player> awayFieldPlayers = new ArrayList<>();
+    private final List<Player> homeBenchPlayers = new ArrayList<>();
+    private final List<Player> awayBenchPlayers = new ArrayList<>();
 
     private final String homeTeamId;
     private final String awayTeamId;
@@ -47,26 +60,28 @@ public class MatchState {
 
     public boolean makeSubstitution(String teamId, Player out, Player in, int maxSubs) {
         if (teamId.equals(homeTeamId)) {
-            return applySubstitution(homeFieldPlayers, out, in, homeSubsUsed, maxSubs,
+            return applySubstitution(homeFieldPlayers, homeBenchPlayers, out, in, homeSubsUsed, maxSubs,
                     count -> homeSubsUsed = count);
         } else if (teamId.equals(awayTeamId)) {
-            return applySubstitution(awayFieldPlayers, out, in, awaySubsUsed, maxSubs,
+            return applySubstitution(awayFieldPlayers, awayBenchPlayers, out, in, awaySubsUsed, maxSubs,
                     count -> awaySubsUsed = count);
         }
         return false;
     }
 
-    private boolean applySubstitution(List<Player> fieldPlayers,
+    private boolean applySubstitution(List<Player> field, List<Player> bench,
                                        Player out, Player in,
                                        int subsUsed, int maxSubs,
                                        java.util.function.IntConsumer updateCount) {
-        if (subsUsed >= maxSubs)          return false;
-        if (!fieldPlayers.contains(out))  return false;
-        if (!in.isAvailable())            return false;
-        if (fieldPlayers.contains(in))    return false;
+        if (subsUsed >= maxSubs)     return false;
+        if (!field.contains(out))    return false;
+        if (!in.isAvailable())       return false;
+        if (field.contains(in))      return false;
 
-        fieldPlayers.remove(out);
-        fieldPlayers.add(in);
+        field.remove(out);
+        field.add(in);
+        bench.remove(in);
+        bench.add(out);
         updateCount.accept(subsUsed + 1);
         return true;
     }
@@ -109,7 +124,31 @@ public class MatchState {
 
     public List<Player> getHomeFieldPlayers()    { return homeFieldPlayers; }
     public List<Player> getAwayFieldPlayers()    { return awayFieldPlayers; }
+    public List<Player> getHomeBenchPlayers()    { return homeBenchPlayers; }
+    public List<Player> getAwayBenchPlayers()    { return awayBenchPlayers; }
 
     public String getHomeTeamId()        { return homeTeamId; }
     public String getAwayTeamId()        { return awayTeamId; }
+
+    /**
+     * Records a yellow card for the player.
+     * @return true if this is the player's second yellow (triggers red card).
+     */
+    public boolean recordYellowCard(Player p) {
+        int count = yellowCardCounts.merge(p, 1, Integer::sum);
+        return count >= 2;
+    }
+
+    public void incrementHomeShots()     { homeShots++; }
+    public void incrementAwayShots()     { awayShots++; }
+    public int  getHomeShots()           { return homeShots; }
+    public int  getAwayShots()           { return awayShots; }
+
+    public void addHomePossessionTick()  { homePossessionTicks++; }
+    public void addAwayPossessionTick()  { awayPossessionTicks++; }
+    /** Returns home possession percentage (0-100). */
+    public int getHomePossession() {
+        int total = homePossessionTicks + awayPossessionTicks;
+        return total == 0 ? 50 : (int) Math.round(100.0 * homePossessionTicks / total);
+    }
 }
