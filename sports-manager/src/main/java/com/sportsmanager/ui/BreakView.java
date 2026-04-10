@@ -281,7 +281,7 @@ public class BreakView extends VBox {
 
         GameManager.getInstance().advanceGameCycle();
         Sidebar sidebar = ViewManager.getInstance().getSidebar();
-        if (sidebar != null) sidebar.refresh();
+        if (sidebar != null) { sidebar.setDisable(false); sidebar.refresh(); }
 
         ViewManager.getInstance().switchView(new MatchSummaryView(match, matchState));
     }

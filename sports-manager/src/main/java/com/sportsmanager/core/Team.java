@@ -36,6 +36,15 @@ public class Team {
     }
 
 
+    public void swapPlayers(Player a, Player b) {
+        int idxA = squad.indexOf(a);
+        int idxB = squad.indexOf(b);
+        if (idxA >= 0 && idxB >= 0) {
+            squad.set(idxA, b);
+            squad.set(idxB, a);
+        }
+    }
+
     public List<Player> getAvailablePlayers() {
         List<Player> available = new ArrayList<>();
         for (Player p : squad) {

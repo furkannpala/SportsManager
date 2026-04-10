@@ -139,6 +139,9 @@ public class FootballLeague implements ILeague {
         currentWeek++;
     }
 
+    public void resetWeek() {
+        currentWeek = 1;
+    }
     @Override
     public boolean isSeasonOver() {
         return currentWeek > TOTAL_WEEKS;

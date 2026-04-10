@@ -113,9 +113,13 @@ public class SquadManagementView extends HBox {
 
         row.getChildren().addAll(avatar, name, posBadge, age, ovr, statusDot);
 
-        // Injury label
-        if (!p.isAvailable()) {
-            Label injLbl = new Label("(" + p.getInjuryGamesRemaining() + ")");
+        // Injury / suspension label
+        if (p.isSuspended()) {
+            Label susLbl = new Label("🚫(" + p.getSuspensionGamesRemaining() + ")");
+            susLbl.setStyle("-fx-text-fill: #ff9800; -fx-font-size: 11px;");
+            row.getChildren().add(susLbl);
+        } else if (!p.isAvailable()) {
+            Label injLbl = new Label("🏥(" + p.getInjuryGamesRemaining() + ")");
             injLbl.setStyle("-fx-text-fill: #ff5252; -fx-font-size: 11px;");
             row.getChildren().add(injLbl);
         }
@@ -156,7 +160,11 @@ public class SquadManagementView extends HBox {
         headerInfo.getChildren().addAll(posBadge, ageLbl, ovrLbl);
 
         // Status
-        if (!p.isAvailable()) {
+        if (p.isSuspended()) {
+            Label susLabel = new Label("🚫 Suspended — " + p.getSuspensionGamesRemaining() + " games remaining");
+            susLabel.setStyle("-fx-text-fill: #ff9800; -fx-font-size: 12px;");
+            card.getChildren().add(susLabel);
+        } else if (!p.isAvailable()) {
             Label injLabel = new Label("🏥 Injured — " + p.getInjuryGamesRemaining() + " games remaining");
             injLabel.setStyle("-fx-text-fill: #ff5252; -fx-font-size: 12px;");
             card.getChildren().add(injLabel);

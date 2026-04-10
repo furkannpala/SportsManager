@@ -123,7 +123,7 @@ public class FootballPlayer extends Player {
      * Overall is capped at pace * 0.5 to reflect their poor goalkeeping ability.
      */
     public int getEmergencyGoalkeeperRating() {
-        return clamp((int) Math.round(pace * 0.5));
+        return clamp((int) Math.round((defending * 0.5 + physical * 0.3 + pace * 0.2) * 0.6));
     }
     private static int clamp(int value) {
         return Math.max(1, Math.min(100, value));
