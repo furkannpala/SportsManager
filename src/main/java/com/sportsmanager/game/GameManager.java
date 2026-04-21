@@ -40,6 +40,11 @@ public class GameManager {
         state.setSeasonNumber(1);
     }
 
+    public void loadGame(SeasonState loadedState, FootballLeague loadedLeague) {
+        this.state = loadedState;
+        this.footballLeague = loadedLeague;
+    }
+
 
     public void advanceGameCycle() {
         if (state == null) return;

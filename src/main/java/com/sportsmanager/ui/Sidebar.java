@@ -2,12 +2,17 @@ package com.sportsmanager.ui;
 
 import com.sportsmanager.game.GameManager;
 import com.sportsmanager.game.SeasonState;
-import javafx.geometry.Insets;
+import com.sportsmanager.save.SaveGameManager;
 import javafx.geometry.Pos;
+import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.TextInputDialog;
 import javafx.scene.layout.Region;
 import javafx.scene.layout.VBox;
+
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Shared navigation sidebar shown after game starts.
@@ -89,10 +94,53 @@ public class Sidebar extends VBox {
             sep2.setPrefWidth(Double.MAX_VALUE);
             getChildren().add(sep2);
 
+            addNavButton("💾  Save Game", this::promptSave);
+
             addNavButton("🔄  New Game", () -> {
                 ViewManager.getInstance().switchView(new SportSelectionView());
             });
         }
+    }
+
+    private void promptSave() {
+        SeasonState state = GameManager.getInstance().getState();
+        if (state == null) return;
+
+        String defaultName = state.getUserTeam().getTeamName()
+                + " - S" + state.getSeasonNumber()
+                + "W" + state.getCurrentWeek()
+                + " - " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss"));
+
+        TextInputDialog dialog = new TextInputDialog(defaultName);
+        dialog.setTitle("Save Game");
+        dialog.setHeaderText("Enter a name for your save");
+        dialog.setContentText("Save name:");
+
+        dialog.showAndWait().ifPresent(name -> {
+            if (name.isBlank()) return;
+            try {
+                SaveGameManager.getInstance().save(name.trim());
+                showInfo("Game saved as \"" + name.trim() + "\".");
+            } catch (Exception ex) {
+                showError(ex.getMessage() == null ? "Unknown error" : ex.getMessage());
+            }
+        });
+    }
+
+    private void showInfo(String message) {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Save Successful");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
+    }
+
+    private void showError(String message) {
+        Alert alert = new Alert(Alert.AlertType.ERROR);
+        alert.setTitle("Save Failed");
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 
     private void addNavButton(String text, Runnable action) {

@@ -142,6 +142,14 @@ public class FootballLeague implements ILeague {
     public void resetWeek() {
         currentWeek = 1;
     }
+
+    public void setCurrentWeek(int week) {
+        this.currentWeek = week;
+    }
+
+    public void setFixture(Fixture fixture) {
+        this.fixture = fixture;
+    }
     @Override
     public boolean isSeasonOver() {
         return currentWeek > TOTAL_WEEKS;

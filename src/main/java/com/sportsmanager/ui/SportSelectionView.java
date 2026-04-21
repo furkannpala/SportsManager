@@ -57,9 +57,10 @@ public class SportSelectionView extends VBox {
             }
         });
 
-        Button loadGame = new Button("Load Game (Soon)");
+        Button loadGame = new Button("Load Game");
         loadGame.getStyleClass().add("btn-secondary");
-        loadGame.setDisable(true);
+        loadGame.setOnAction(e ->
+                ViewManager.getInstance().switchView(new LoadGameView()));
 
         buttons.getChildren().addAll(newGame, loadGame);
 

@@ -32,8 +32,14 @@ public class LogoManager {
     /** All successfully pre-loaded images. */
     private final List<Image> available = new ArrayList<>();
 
+    /** Parallel list: file index (1..LOGO_COUNT) for each entry in {@link #available}. */
+    private final List<Integer> availableIndices = new ArrayList<>();
+
     /** teamId → assigned Image */
     private final Map<String, Image> logos = new HashMap<>();
+
+    /** teamId → file index of the assigned logo (so saves can persist exact logo). */
+    private final Map<String, Integer> logoFileIndices = new HashMap<>();
 
     private LogoManager() {
         preloadAll();
@@ -50,7 +56,10 @@ public class LogoManager {
     private void preloadAll() {
         for (int i = 1; i <= LOGO_COUNT; i++) {
             Image img = loadImage(String.format(BASE, i));
-            if (img != null) available.add(img);
+            if (img != null) {
+                available.add(img);
+                availableIndices.add(i);
+            }
         }
     }
 
@@ -74,14 +83,44 @@ public class LogoManager {
      */
     public void assign(List<Team> teams) {
         logos.clear();
+        logoFileIndices.clear();
         if (available.isEmpty()) return; // no logos loaded — all teams use fallback
 
-        List<Image> pool = new ArrayList<>(available);
-        Collections.shuffle(pool);
+        // Shuffle a list of indices into available[] so we can record both image and file index.
+        List<Integer> order = new ArrayList<>();
+        for (int i = 0; i < available.size(); i++) order.add(i);
+        Collections.shuffle(order);
 
         for (int i = 0; i < teams.size(); i++) {
-            logos.put(teams.get(i).getTeamId(), pool.get(i % pool.size()));
+            int slot = order.get(i % order.size());
+            logos.put(teams.get(i).getTeamId(), available.get(slot));
+            logoFileIndices.put(teams.get(i).getTeamId(), availableIndices.get(slot));
         }
+    }
+
+    /**
+     * Restores logo assignments from a previously saved game.
+     * Each map entry is (teamId → original file index from BASE template).
+     * Teams whose file index is no longer available silently fall back to the letter logo.
+     */
+    public void restoreAssignments(Map<String, Integer> savedAssignments) {
+        logos.clear();
+        logoFileIndices.clear();
+        if (savedAssignments == null) return;
+
+        for (Map.Entry<String, Integer> e : savedAssignments.entrySet()) {
+            int fileIdx = e.getValue();
+            int slot = availableIndices.indexOf(fileIdx);
+            if (slot >= 0) {
+                logos.put(e.getKey(), available.get(slot));
+                logoFileIndices.put(e.getKey(), fileIdx);
+            }
+        }
+    }
+
+    /** Snapshot of current teamId → logo file index assignments (for save files). */
+    public Map<String, Integer> getAssignments() {
+        return new HashMap<>(logoFileIndices);
     }
 
     // ── Accessors ─────────────────────────────────────────────────────────────
