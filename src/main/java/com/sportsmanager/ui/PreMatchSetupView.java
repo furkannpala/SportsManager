@@ -33,6 +33,7 @@ public class PreMatchSetupView extends StackPane {
     private VBox lineupCard;
     private Label hintLabel;
     private VBox overlayLayer;
+    private FormationPitchView pitchView;
 
     public PreMatchSetupView(Match match) {
         this.state = GameManager.getInstance().getState();
@@ -92,13 +93,19 @@ public class PreMatchSetupView extends StackPane {
         HBox.setHgrow(lineupScroll, Priority.ALWAYS);
 
         // ── Tactic card ───────────────────────────────────────────────
-        VBox tacticCard = new VBox(12);
+        VBox tacticCard = new VBox(10);
         tacticCard.getStyleClass().add("card");
-        tacticCard.setPrefWidth(280);
+        tacticCard.setPrefWidth(300);
 
         Label tacticTitle = new Label("Tactics");
         tacticTitle.getStyleClass().add("section-label");
         tacticCard.getChildren().add(tacticTitle);
+
+        // ── Formation pitch preview ───────────────────────────────────
+        pitchView = new FormationPitchView(userTeam.getFormation());
+        StackPane pitchWrapper = new StackPane(pitchView);
+        pitchWrapper.setAlignment(Pos.CENTER);
+        tacticCard.getChildren().add(pitchWrapper);
 
         Label formLabel = new Label("Formation");
         formLabel.getStyleClass().add("text-muted");
@@ -117,6 +124,7 @@ public class PreMatchSetupView extends StackPane {
             for (Formation f : sport.getFormations()) {
                 if (f.getFormationName().equals(sel)) {
                     userTeam.setFormation(f);
+                    pitchView.redraw(f);
                     break;
                 }
             }
@@ -465,6 +473,8 @@ public class PreMatchSetupView extends StackPane {
             case DEFENSIVE_MIDFIELDER -> "CDM";
             case CENTRAL_MIDFIELDER -> "CM";
             case ATTACKING_MIDFIELDER -> "CAM";
+            case LEFT_MIDFIELDER -> "LM";
+            case RIGHT_MIDFIELDER -> "RM";
             case LEFT_WINGER -> "LW";
             case RIGHT_WINGER -> "RW";
             case STRIKER -> "ST";

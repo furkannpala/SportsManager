@@ -91,6 +91,34 @@ public enum FootballPosition implements Position {
         }
     },
 
+    LEFT_MIDFIELDER("Left Midfielder", false, true, false) {
+        @Override
+        public Map<String, Double> getWeightedAttributes() {
+            Map<String, Double> w = new LinkedHashMap<>();
+            w.put("passing",   0.25);
+            w.put("pace",      0.25);
+            w.put("dribbling", 0.20);
+            w.put("physical",  0.15);
+            w.put("defending", 0.10);
+            w.put("shooting",  0.05);
+            return w;
+        }
+    },
+
+    RIGHT_MIDFIELDER("Right Midfielder", false, true, false) {
+        @Override
+        public Map<String, Double> getWeightedAttributes() {
+            Map<String, Double> w = new LinkedHashMap<>();
+            w.put("passing",   0.25);
+            w.put("pace",      0.25);
+            w.put("dribbling", 0.20);
+            w.put("physical",  0.15);
+            w.put("defending", 0.10);
+            w.put("shooting",  0.05);
+            return w;
+        }
+    },
+
     ATTACKING_MIDFIELDER("Attacking Midfielder", false, true, false) {
         @Override
         public Map<String, Double> getWeightedAttributes() {
