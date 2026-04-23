@@ -15,16 +15,16 @@ class FootballSportTest {
         sport = new FootballSport();
     }
 
-    // ── getPositions returns 11 positions ─────────────────────────────────
+    // ── getPositions returns 13 positions ─────────────────────────────────
     @Test
-    void getPositions_returns11() {
-        assertEquals(11, sport.getPositions().size());
+    void getPositions_returns13() {
+        assertEquals(13, sport.getPositions().size());
     }
 
-    // ── getFormations returns 5 formations ────────────────────────────────
+    // ── getFormations returns 29 formations ───────────────────────────────
     @Test
-    void getFormations_returns5() {
-        assertEquals(5, sport.getFormations().size());
+    void getFormations_returns29() {
+        assertEquals(29, sport.getFormations().size());
     }
 
     // ── getTactics returns 4 tactics ─────────────────────────────────────

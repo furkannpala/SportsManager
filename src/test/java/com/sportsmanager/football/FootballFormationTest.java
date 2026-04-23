@@ -41,11 +41,11 @@ class FootballFormationTest {
                 formation.getFormationName() + " outfield counts should sum to 10");
     }
 
-    // ── F_4_3_3 has expected counts and name ─────────────────────────────
+    // ── F_4_3_3_DUZ has expected counts and name ─────────────────────────
     @Test
-    void f433_hasCorrectCountsAndName() {
-        FootballFormation f = FootballFormation.F_4_3_3;
-        assertEquals("4-3-3", f.getFormationName());
+    void f433Flat_hasCorrectCountsAndName() {
+        FootballFormation f = FootballFormation.F_4_3_3_DUZ;
+        assertEquals("4-3-3 Flat", f.getFormationName());
         assertEquals(4, f.getDefenderCount());
         assertEquals(3, f.getMidfielderCount());
         assertEquals(3, f.getAttackerCount());
