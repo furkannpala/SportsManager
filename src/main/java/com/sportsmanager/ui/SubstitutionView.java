@@ -16,143 +16,261 @@ import javafx.scene.layout.*;
 import java.util.List;
 
 /**
- * Screen — Half-time substitution panel, opened from BreakView.
+ * Half-time substitution panel (EA FC style).
+ * Left: pitch — click a field player to mark as "out".
+ * Right: bench cards — click to select "in", then confirm.
  */
-public class SubstitutionView extends VBox {
+public class SubstitutionView extends HBox {
+
+    private final Match match;
+    private final MatchState matchState;
+    private final MatchEngine engine;
+    private final Team userTeam;
+    private final boolean isHome;
+    private final List<Player> fieldPlayers;
+    private final List<Player> bench;
+    private final Formation formation;
+    private final int maxSubs;
+
+    private Player selectedOut = null;
+    private Player selectedIn  = null;
+
+    private final FormationPitchView pitchView;
+    private final VBox benchPanel;
+    private final Label statusLabel;
+    private final Button confirmBtn;
 
     public SubstitutionView(Match match, MatchState matchState, MatchEngine engine) {
+        this.match       = match;
+        this.matchState  = matchState;
+        this.engine      = engine;
+
         SeasonState state = GameManager.getInstance().getState();
         Sport sport       = state.getCurrentSport();
-        Team userTeam     = state.getUserTeam();
-        boolean isHome    = userTeam == match.getHomeTeam();
+        this.userTeam     = state.getUserTeam();
+        this.isHome       = userTeam == match.getHomeTeam();
+        this.maxSubs      = sport.getMaxSubstitutions();
+        this.fieldPlayers = isHome ? matchState.getHomeFieldPlayers() : matchState.getAwayFieldPlayers();
+        this.bench        = isHome ? matchState.getHomeBenchPlayers() : matchState.getAwayBenchPlayers();
+        this.formation    = userTeam.getFormation();
 
-        setSpacing(14);
-        setPadding(new Insets(24));
+        setSpacing(0);
 
-        int maxSubs  = sport.getMaxSubstitutions();
-        int usedSubs = isHome ? matchState.getHomeSubsUsed() : matchState.getAwaySubsUsed();
+        // ── Left: pitch ──────────────────────────────────────────────────────────
+        VBox pitchPanel = new VBox(10);
+        pitchPanel.setPadding(new Insets(20, 12, 20, 20));
+        pitchPanel.setAlignment(Pos.TOP_CENTER);
+        pitchPanel.setStyle("-fx-background-color: #16213e;");
+        pitchPanel.setPrefWidth(300);
+        pitchPanel.setMinWidth(300);
 
-        List<Player> fieldPlayers = isHome
-                ? matchState.getHomeFieldPlayers()
-                : matchState.getAwayFieldPlayers();
+        int usedSubs  = isHome ? matchState.getHomeSubsUsed() : matchState.getAwaySubsUsed();
+        int remaining = maxSubs - usedSubs;
 
-        List<Player> bench = isHome
-                ? matchState.getHomeBenchPlayers()
-                : matchState.getAwayBenchPlayers();
-
-        // ── Header ──────────────────────────────────────────────────────────────
         Label title = new Label("Substitutions");
-        title.setStyle("-fx-font-size: 20px; -fx-font-weight: bold; -fx-text-fill: #e0e0ff;");
+        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #e0e0ff;");
 
-        Label remaining = new Label("Remaining: " + (maxSubs - usedSubs) + " / " + maxSubs);
-        remaining.getStyleClass().add("text-muted");
+        Label remLabel = new Label("Remaining: " + remaining + " / " + maxSubs);
+        remLabel.getStyleClass().add("text-muted");
 
-        // ── Player Out ──────────────────────────────────────────────────────────
-        Label outLabel = new Label("Player Out");
-        outLabel.getStyleClass().add("text-muted");
+        pitchView = new FormationPitchView(null);
+        StackPane pitchWrapper = new StackPane(pitchView);
+        pitchWrapper.setAlignment(Pos.CENTER);
 
-        ComboBox<String> outBox = new ComboBox<>();
-        for (Player p : fieldPlayers) {
-            String fatigue = p.getAge() > 30 ? " · Tired" : "";
-            outBox.getItems().add(p.getName() + "  [" + positionName(p) + "]" + fatigue + "  OVR " + p.getOverallRating());
-        }
-        outBox.setMaxWidth(Double.MAX_VALUE);
-        outBox.setPromptText("Select player to remove…");
+        statusLabel = new Label("Click a player on the pitch to substitute");
+        statusLabel.setStyle("-fx-text-fill: #aaaacc; -fx-font-size: 11px;");
+        statusLabel.setWrapText(true);
 
-        Label positionBadge = new Label("");
-        positionBadge.setStyle("-fx-text-fill: #ffd740; -fx-font-size: 12px; -fx-font-weight: bold;");
-
-        // ── Player In ───────────────────────────────────────────────────────────
-        Label inLabel = new Label("Player In");
-        inLabel.getStyleClass().add("text-muted");
-
-        ComboBox<String> inBox = new ComboBox<>();
-        inBox.setMaxWidth(Double.MAX_VALUE);
-        inBox.setPromptText("First select the player going out…");
-
-        final List<Player>[] filteredBenchRef = new List[]{ List.of() };
-
-        outBox.getSelectionModel().selectedIndexProperty().addListener((obs, oldVal, newVal) -> {
-            int idx = newVal.intValue();
-            inBox.getItems().clear();
-            inBox.getSelectionModel().clearSelection();
-
-            if (idx < 0) {
-                positionBadge.setText("");
-                filteredBenchRef[0] = List.of();
-                return;
-            }
-
-            Player outPlayer = fieldPlayers.get(idx);
-            FootballPosition outPos = footballPosition(outPlayer);
-            positionBadge.setText("Position: " + positionName(outPlayer));
-
-            List<Player> sameZone = bench.stream()
-                    .filter(p -> isSameZone(footballPosition(p), outPos))
-                    .toList();
-            List<Player> filtered = sameZone.isEmpty() ? bench : sameZone;
-            filteredBenchRef[0] = filtered;
-
-            for (Player p : filtered) {
-                inBox.getItems().add(p.getName() + "  [" + positionName(p) + "]  OVR " + p.getOverallRating());
-            }
-            inBox.setPromptText(filtered.isEmpty() ? "No bench players available" : "Select player to add…");
-        });
-
-        Label errorLabel = new Label("");
-        errorLabel.setStyle("-fx-text-fill: #ff5252; -fx-font-size: 12px;");
-
-        Button subBtn = new Button("Confirm Substitution");
-        subBtn.getStyleClass().add("btn-primary");
-        subBtn.setMaxWidth(Double.MAX_VALUE);
-        subBtn.setOnAction(e -> {
-            int outIdx = outBox.getSelectionModel().getSelectedIndex();
-            int inIdx  = inBox.getSelectionModel().getSelectedIndex();
-            if (outIdx < 0 || inIdx < 0) { errorLabel.setText("Select both players."); return; }
-
-            Player outPlayer = fieldPlayers.get(outIdx);
-            List<Player> filteredBench = filteredBenchRef[0];
-            if (inIdx >= filteredBench.size()) { errorLabel.setText("Invalid selection."); return; }
-            Player inPlayer = filteredBench.get(inIdx);
-
-            boolean ok = matchState.makeSubstitution(userTeam.getTeamId(), outPlayer, inPlayer, maxSubs);
-            if (!ok) { errorLabel.setText("Substitution failed — no subs remaining or invalid."); return; }
-
-            matchState.addEvent(new FootballMatchEvent(
-                    FootballEventType.SUBSTITUTION,
-                    matchState.getCurrentMinute(),
-                    outPlayer, inPlayer,
-                    userTeam.getTeamId()));
-
-            ViewManager.getInstance().switchView(new SubstitutionView(match, matchState, engine));
-        });
-
-        // ── Back button ─────────────────────────────────────────────────────────
         Button backBtn = new Button("← Back to Half-Time");
         backBtn.getStyleClass().add("btn-secondary");
+        backBtn.setMaxWidth(Double.MAX_VALUE);
         backBtn.setOnAction(e ->
                 ViewManager.getInstance().switchView(new BreakView(match, matchState, engine)));
 
-        getChildren().addAll(title, remaining, outLabel, outBox, positionBadge,
-                inLabel, inBox, subBtn, errorLabel, backBtn);
+        pitchPanel.getChildren().addAll(title, remLabel, pitchWrapper, statusLabel, backBtn);
+
+        // ── Right: bench ─────────────────────────────────────────────────────────
+        VBox rightPanel = new VBox(10);
+        rightPanel.setPadding(new Insets(20, 20, 20, 12));
+        HBox.setHgrow(rightPanel, Priority.ALWAYS);
+
+        Label benchTitle = new Label("Bench Players");
+        benchTitle.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #e0e0ff;");
+
+        Label benchHint = new Label("Select a player on the pitch first");
+        benchHint.getStyleClass().add("text-muted");
+        benchHint.setStyle("-fx-font-size: 11px;");
+
+        benchPanel = new VBox(6);
+        ScrollPane benchScroll = new ScrollPane(benchPanel);
+        benchScroll.setFitToWidth(true);
+        benchScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        VBox.setVgrow(benchScroll, Priority.ALWAYS);
+
+        confirmBtn = new Button("Confirm Substitution");
+        confirmBtn.getStyleClass().add("btn-primary");
+        confirmBtn.setMaxWidth(Double.MAX_VALUE);
+        confirmBtn.setDisable(true);
+        confirmBtn.setOnAction(e -> handleConfirm());
+
+        rightPanel.getChildren().addAll(benchTitle, benchHint, benchScroll, confirmBtn);
+
+        getChildren().addAll(pitchPanel, rightPanel);
+
+        refreshPitch();
+        refreshBench();
     }
 
-    private FootballPosition footballPosition(Player p) {
-        if (p instanceof FootballPlayer fp) return fp.getPosition();
-        return null;
+    // ── Refresh ──────────────────────────────────────────────────────────────────
+
+    private void refreshPitch() {
+        pitchView.redrawWithPlayers(formation, fieldPlayers, selectedOut, player -> {
+            if (player == selectedOut) {
+                selectedOut = null;
+                selectedIn  = null;
+                statusLabel.setText("Click a player on the pitch to substitute");
+                confirmBtn.setDisable(true);
+            } else {
+                selectedOut = player;
+                selectedIn  = null;
+                statusLabel.setText("Out: " + player.getName() + "  — pick a bench player →");
+                confirmBtn.setDisable(true);
+            }
+            refreshPitch();
+            refreshBench();
+        });
     }
 
-    private String positionName(Player p) {
-        FootballPosition pos = footballPosition(p);
+    private void refreshBench() {
+        benchPanel.getChildren().clear();
+
+        List<Player> candidates = selectedOut != null
+                ? filterByZone(bench, footballPos(selectedOut))
+                : bench;
+
+        if (candidates.isEmpty()) {
+            Label none = new Label("No compatible bench players available");
+            none.getStyleClass().add("text-muted");
+            benchPanel.getChildren().add(none);
+            return;
+        }
+
+        for (Player p : candidates)
+            benchPanel.getChildren().add(buildBenchCard(p));
+    }
+
+    private HBox buildBenchCard(Player p) {
+        boolean sel   = (p == selectedIn);
+        boolean avail = p.isAvailable();
+
+        HBox card = new HBox(10);
+        card.setAlignment(Pos.CENTER_LEFT);
+        card.setPadding(new Insets(10, 14, 10, 14));
+        card.setStyle(cardStyle(sel, false));
+
+        Label avatar = new Label(initials(p.getName()));
+        avatar.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: #00d2ff;"
+                + " -fx-background-color: #0f3460; -fx-background-radius: 50;"
+                + " -fx-min-width: 34; -fx-min-height: 34; -fx-max-width: 34; -fx-max-height: 34;"
+                + " -fx-alignment: center;");
+
+        VBox info = new VBox(2);
+        Label name = new Label(p.getName());
+        name.setStyle("-fx-text-fill: " + (sel ? "#00e676" : "#e0e0ff")
+                + "; -fx-font-size: 13px; -fx-font-weight: bold;");
+        Label pos = new Label(posName(p) + "  ·  OVR " + p.getOverallRating());
+        pos.setStyle("-fx-text-fill: #888899; -fx-font-size: 11px;");
+        info.getChildren().addAll(name, pos);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+
+        if (!avail) {
+            String reason = p.isSuspended()
+                    ? "Suspended (" + p.getSuspensionGamesRemaining() + ")"
+                    : "Injured (" + p.getInjuryGamesRemaining() + ")";
+            Label badge = new Label(reason);
+            badge.setStyle("-fx-text-fill: #ff5252; -fx-font-size: 10px;");
+            card.getChildren().addAll(avatar, info, spacer, badge);
+            card.setOpacity(0.5);
+        } else {
+            Label check = new Label(sel ? "✓" : "");
+            check.setStyle("-fx-text-fill: #00e676; -fx-font-size: 16px; -fx-font-weight: bold;");
+            card.getChildren().addAll(avatar, info, spacer, check);
+
+            card.setOnMouseClicked(e -> {
+                if (selectedOut == null) return;
+                selectedIn = p;
+                confirmBtn.setDisable(false);
+                statusLabel.setText("Out: " + selectedOut.getName() + "\nIn:  " + p.getName());
+                refreshBench();
+            });
+            card.setOnMouseEntered(e -> { if (!sel) card.setStyle(cardStyle(false, true)); });
+            card.setOnMouseExited(e -> { if (!sel) card.setStyle(cardStyle(false, false)); });
+        }
+        return card;
+    }
+
+    private String cardStyle(boolean selected, boolean hovered) {
+        if (selected)
+            return "-fx-background-color: #1a3a1a; -fx-background-radius: 8;"
+                    + " -fx-border-color: #00e676; -fx-border-width: 1.5; -fx-border-radius: 8;"
+                    + " -fx-cursor: hand;";
+        if (hovered)
+            return "-fx-background-color: #222240; -fx-background-radius: 8; -fx-cursor: hand;";
+        return "-fx-background-color: #1a1a2e; -fx-background-radius: 8; -fx-cursor: hand;";
+    }
+
+    // ── Confirm ──────────────────────────────────────────────────────────────────
+
+    private void handleConfirm() {
+        if (selectedOut == null || selectedIn == null) return;
+
+        boolean ok = matchState.makeSubstitution(userTeam.getTeamId(), selectedOut, selectedIn, maxSubs);
+        if (!ok) {
+            statusLabel.setText("Substitution failed — no subs remaining or player unavailable.");
+            return;
+        }
+        matchState.addEvent(new FootballMatchEvent(
+                FootballEventType.SUBSTITUTION,
+                matchState.getCurrentMinute(),
+                selectedOut, selectedIn,
+                userTeam.getTeamId()));
+
+        ViewManager.getInstance().switchView(new SubstitutionView(match, matchState, engine));
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────────
+
+    private FootballPosition footballPos(Player p) {
+        return p instanceof FootballPlayer fp ? fp.getPosition() : null;
+    }
+
+    private String posName(Player p) {
+        FootballPosition pos = footballPos(p);
         return pos != null ? pos.getName() : "—";
+    }
+
+    private List<Player> filterByZone(List<Player> players, FootballPosition outPos) {
+        if (outPos == null) return players;
+        List<Player> same = players.stream()
+                .filter(p -> isSameZone(footballPos(p), outPos))
+                .toList();
+        return same.isEmpty() ? players : same;
     }
 
     private boolean isSameZone(FootballPosition a, FootballPosition b) {
         if (a == null || b == null) return true;
-        if (a == FootballPosition.GOALKEEPER || b == FootballPosition.GOALKEEPER)
-            return a == b;
+        if (a == FootballPosition.GOALKEEPER || b == FootballPosition.GOALKEEPER) return a == b;
         return a.isDefensive() == b.isDefensive()
                 && a.isMidfield()  == b.isMidfield()
                 && a.isAttacking() == b.isAttacking();
+    }
+
+    private String initials(String fullName) {
+        String[] parts = fullName.split("\\s+");
+        if (parts.length >= 2)
+            return ("" + parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+        return fullName.substring(0, Math.min(2, fullName.length())).toUpperCase();
     }
 }

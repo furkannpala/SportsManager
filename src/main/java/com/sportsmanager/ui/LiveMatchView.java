@@ -13,6 +13,7 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
@@ -316,7 +317,7 @@ public class LiveMatchView extends StackPane {
         overlayLayer.getChildren().clear();
     }
 
-    // ── Substitution overlay ─────────────────────────────────────────────────────
+    // ── Substitution overlay (EA FC style — click only) ──────────────────────────
 
     private void openSubstitutionOverlay() {
         pauseForOverlay();
@@ -330,125 +331,177 @@ public class LiveMatchView extends StackPane {
         List<Player> fieldPlayers = isHome
                 ? matchState.getHomeFieldPlayers()
                 : matchState.getAwayFieldPlayers();
-
         List<Player> bench = isHome
                 ? matchState.getHomeBenchPlayers()
                 : matchState.getAwayBenchPlayers();
 
-        VBox panel = new VBox(12);
-        panel.getStyleClass().add("card");
-        panel.setPadding(new Insets(24));
-        panel.setMaxWidth(440);
+        Player[] selOut = {null};
+        Player[] selIn  = {null};
 
-        Label title = new Label("Substitution");
-        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #e0e0ff;");
+        FormationPitchView pitchView = new FormationPitchView(null);
+        VBox benchPanel = new VBox(6);
+        ScrollPane benchScroll = new ScrollPane(benchPanel);
+        benchScroll.setFitToWidth(true);
+        benchScroll.setPrefHeight(280);
+        benchScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
 
-        Label remLabel = new Label("Remaining: " + (maxSubs - usedSubs) + " / " + maxSubs);
-        remLabel.getStyleClass().add("text-muted");
+        Label statusLbl = new Label("Click a player on the pitch to substitute");
+        statusLbl.setStyle("-fx-text-fill: #aaaacc; -fx-font-size: 11px;");
+        statusLbl.setWrapText(true);
 
-        // ── Player Out ──────────────────────────────────────────────────────────
-        Label outLabel = new Label("Player Out");
-        outLabel.getStyleClass().add("text-muted");
-
-        ComboBox<String> outBox = new ComboBox<>();
-        for (Player p : fieldPlayers) {
-            String pos = positionName(p);
-            String fatigue = (p.getAge() > 30) ? " · Tired" : "";
-            outBox.getItems().add(p.getName() + "  [" + pos + "]" + fatigue + "  OVR " + p.getOverallRating());
-        }
-        outBox.setMaxWidth(Double.MAX_VALUE);
-        outBox.setPromptText("Select player to remove…");
-
-        // Position badge shown when a player is selected
-        Label positionBadge = new Label("");
-        positionBadge.setStyle("-fx-text-fill: #ffd740; -fx-font-size: 12px; -fx-font-weight: bold;");
-
-        // ── Player In ───────────────────────────────────────────────────────────
-        Label inLabel = new Label("Player In");
-        inLabel.getStyleClass().add("text-muted");
-
-        ComboBox<String> inBox = new ComboBox<>();
-        inBox.setMaxWidth(Double.MAX_VALUE);
-        inBox.setPromptText("First select the player going out…");
-
-        // Backing list for inBox — updated when outBox selection changes
-        final List<Player>[] filteredBenchRef = new List[]{ List.of() };
-
-        outBox.getSelectionModel().selectedIndexProperty().addListener((obs, oldVal, newVal) -> {
-            int idx = newVal.intValue();
-            inBox.getItems().clear();
-            inBox.getSelectionModel().clearSelection();
-
-            if (idx < 0) {
-                positionBadge.setText("");
-                filteredBenchRef[0] = List.of();
-                return;
-            }
-
-            Player outPlayer = fieldPlayers.get(idx);
-            FootballPosition outPos = footballPosition(outPlayer);
-            positionBadge.setText("Position: " + positionName(outPlayer));
-
-            // Same zone first; fall back to full bench
-            List<Player> sameZone = bench.stream()
-                    .filter(p -> isSameZone(footballPosition(p), outPos))
-                    .toList();
-            List<Player> filtered = sameZone.isEmpty() ? bench : sameZone;
-            filteredBenchRef[0] = filtered;
-
-            for (Player p : filtered) {
-                inBox.getItems().add(p.getName() + "  [" + positionName(p) + "]  OVR " + p.getOverallRating());
-            }
-            if (filtered.isEmpty()) {
-                inBox.setPromptText("No bench players available");
-            } else {
-                inBox.setPromptText("Select player to add…");
-            }
-        });
-
-        Label errorLabel = new Label("");
-        errorLabel.setStyle("-fx-text-fill: #ff5252; -fx-font-size: 12px;");
-
-        Button confirmBtn = new Button("Confirm");
+        Button confirmBtn = new Button("Confirm Substitution");
         confirmBtn.getStyleClass().add("btn-primary");
         confirmBtn.setMaxWidth(Double.MAX_VALUE);
-        confirmBtn.setOnAction(e -> {
-            int outIdx = outBox.getSelectionModel().getSelectedIndex();
-            int inIdx  = inBox.getSelectionModel().getSelectedIndex();
-            if (outIdx < 0 || inIdx < 0) { errorLabel.setText("Select both players."); return; }
-
-            Player outPlayer = fieldPlayers.get(outIdx);
-            List<Player> filteredBench = filteredBenchRef[0];
-            if (inIdx >= filteredBench.size()) { errorLabel.setText("Invalid selection."); return; }
-            Player inPlayer = filteredBench.get(inIdx);
-
-            boolean ok = matchState.makeSubstitution(userTeam.getTeamId(), outPlayer, inPlayer, maxSubs);
-            if (!ok) { errorLabel.setText("Substitution failed."); return; }
-
-            matchState.addEvent(new FootballMatchEvent(
-                    FootballEventType.SUBSTITUTION,
-                    matchState.getCurrentMinute(),
-                    outPlayer, inPlayer,
-                    userTeam.getTeamId()));
-
-            resumeAfterOverlay();
-            showSubstitutionToast(outPlayer, inPlayer);
-        });
+        confirmBtn.setDisable(true);
 
         Button cancelBtn = new Button("Cancel");
         cancelBtn.getStyleClass().add("btn-secondary");
         cancelBtn.setMaxWidth(Double.MAX_VALUE);
         cancelBtn.setOnAction(e -> resumeAfterOverlay());
 
-        HBox btnRow = new HBox(8, confirmBtn, cancelBtn);
-        HBox.setHgrow(confirmBtn, Priority.ALWAYS);
-        HBox.setHgrow(cancelBtn, Priority.ALWAYS);
+        Runnable[] refreshPitch = {null};
+        Runnable[] refreshBench = {null};
 
-        panel.getChildren().addAll(title, remLabel,
-                outLabel, outBox, positionBadge,
-                inLabel, inBox,
-                btnRow, errorLabel);
+        refreshPitch[0] = () -> pitchView.redrawWithPlayers(
+                userTeam.getFormation(), fieldPlayers, selOut[0],
+                player -> {
+                    if (player == selOut[0]) {
+                        selOut[0] = null; selIn[0] = null;
+                        statusLbl.setText("Click a player on the pitch to substitute");
+                        confirmBtn.setDisable(true);
+                    } else {
+                        selOut[0] = player; selIn[0] = null;
+                        statusLbl.setText("Out: " + player.getName() + "  — pick a bench player →");
+                        confirmBtn.setDisable(true);
+                    }
+                    refreshPitch[0].run();
+                    refreshBench[0].run();
+                });
+
+        refreshBench[0] = () -> {
+            benchPanel.getChildren().clear();
+            List<Player> candidates = selOut[0] != null
+                    ? filterBenchByZone(bench, footballPosition(selOut[0]))
+                    : bench;
+            if (candidates.isEmpty()) {
+                Label none = new Label("No compatible bench players available");
+                none.getStyleClass().add("text-muted");
+                benchPanel.getChildren().add(none);
+                return;
+            }
+            for (Player p : candidates) {
+                benchPanel.getChildren().add(
+                        buildBenchCard(p, selOut, selIn, refreshBench, statusLbl, confirmBtn));
+            }
+        };
+
+        confirmBtn.setOnAction(e -> {
+            if (selOut[0] == null || selIn[0] == null) return;
+            boolean ok = matchState.makeSubstitution(userTeam.getTeamId(), selOut[0], selIn[0], maxSubs);
+            if (!ok) { statusLbl.setText("Substitution failed."); return; }
+            matchState.addEvent(new FootballMatchEvent(
+                    FootballEventType.SUBSTITUTION, matchState.getCurrentMinute(),
+                    selOut[0], selIn[0], userTeam.getTeamId()));
+            resumeAfterOverlay();
+            showSubstitutionToast(selOut[0], selIn[0]);
+        });
+
+        // Layout
+        VBox leftPanel = new VBox(8);
+        leftPanel.setPadding(new Insets(16, 10, 16, 16));
+        leftPanel.setAlignment(Pos.TOP_CENTER);
+        Label title = new Label("Substitution  ·  " + (maxSubs - usedSubs) + " remaining");
+        title.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #e0e0ff;");
+        leftPanel.getChildren().addAll(title, new StackPane(pitchView), statusLbl, cancelBtn);
+
+        VBox rightPanel = new VBox(8);
+        rightPanel.setPadding(new Insets(16, 16, 16, 10));
+        rightPanel.setPrefWidth(280);
+        Label benchTitle = new Label("Bench Players");
+        benchTitle.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #e0e0ff;");
+        rightPanel.getChildren().addAll(benchTitle, benchScroll, confirmBtn);
+        VBox.setVgrow(benchScroll, Priority.ALWAYS);
+
+        HBox content = new HBox(0, leftPanel, rightPanel);
+        VBox panel = new VBox(content);
+        panel.getStyleClass().add("card");
+        panel.setMaxWidth(620);
+
+        refreshPitch[0].run();
+        refreshBench[0].run();
         showOverlay(panel);
+    }
+
+    private HBox buildBenchCard(Player p,
+                                 Player[] selOut, Player[] selIn,
+                                 Runnable[] refreshBench,
+                                 Label statusLbl, Button confirmBtn) {
+        boolean sel   = (p == selIn[0]);
+        boolean avail = p.isAvailable();
+
+        HBox card = new HBox(8);
+        card.setAlignment(Pos.CENTER_LEFT);
+        card.setPadding(new Insets(8, 12, 8, 12));
+        card.setStyle(benchCardStyle(sel, false));
+
+        String[] np = p.getName().split("\\s+");
+        String initials = np.length >= 2
+                ? ("" + np[0].charAt(0) + np[1].charAt(0)).toUpperCase()
+                : p.getName().substring(0, Math.min(2, p.getName().length())).toUpperCase();
+        Label avatar = new Label(initials);
+        avatar.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #00d2ff;"
+                + " -fx-background-color: #0f3460; -fx-background-radius: 50;"
+                + " -fx-min-width: 30; -fx-min-height: 30; -fx-max-width: 30; -fx-max-height: 30;"
+                + " -fx-alignment: center;");
+
+        VBox info = new VBox(1);
+        Label name = new Label(p.getName());
+        name.setStyle("-fx-text-fill: " + (sel ? "#00e676" : "#e0e0ff")
+                + "; -fx-font-size: 12px; -fx-font-weight: bold;");
+        Label posOvr = new Label(positionName(p) + "  OVR " + p.getOverallRating());
+        posOvr.setStyle("-fx-text-fill: #888899; -fx-font-size: 10px;");
+        info.getChildren().addAll(name, posOvr);
+
+        Region spacer = new Region();
+        HBox.setHgrow(spacer, Priority.ALWAYS);
+        card.getChildren().addAll(avatar, info, spacer);
+
+        if (!avail) {
+            card.setOpacity(0.5);
+            return card;
+        }
+
+        Label check = new Label(sel ? "✓" : "");
+        check.setStyle("-fx-text-fill: #00e676; -fx-font-size: 14px; -fx-font-weight: bold;");
+        card.getChildren().add(check);
+
+        card.setOnMouseClicked(e -> {
+            if (selOut[0] == null) return;
+            selIn[0] = p;
+            confirmBtn.setDisable(false);
+            statusLbl.setText("Out: " + selOut[0].getName() + "\nIn:  " + p.getName());
+            refreshBench[0].run();
+        });
+        card.setOnMouseEntered(e -> { if (!sel) card.setStyle(benchCardStyle(false, true)); });
+        card.setOnMouseExited(e -> { if (!sel) card.setStyle(benchCardStyle(false, false)); });
+        return card;
+    }
+
+    private String benchCardStyle(boolean selected, boolean hovered) {
+        if (selected)
+            return "-fx-background-color: #1a3a1a; -fx-background-radius: 6;"
+                    + " -fx-border-color: #00e676; -fx-border-width: 1.5; -fx-border-radius: 6; -fx-cursor: hand;";
+        if (hovered)
+            return "-fx-background-color: #222240; -fx-background-radius: 6; -fx-cursor: hand;";
+        return "-fx-background-color: #1a1a2e; -fx-background-radius: 6; -fx-cursor: hand;";
+    }
+
+    private List<Player> filterBenchByZone(List<Player> bench, FootballPosition outPos) {
+        if (outPos == null) return bench;
+        List<Player> same = bench.stream()
+                .filter(p -> isSameZone(footballPosition(p), outPos))
+                .toList();
+        return same.isEmpty() ? bench : same;
     }
 
     // ── Position helpers ──────────────────────────────────────────────────────────
@@ -535,21 +588,33 @@ public class LiveMatchView extends StackPane {
         dismiss.play();
     }
 
-    // ── Tactics overlay ──────────────────────────────────────────────────────────
+    // ── Tactics overlay (EA FC style) ────────────────────────────────────────────
 
     private void openTacticsOverlay() {
         pauseForOverlay();
 
-        Sport sport   = state.getCurrentSport();
-        Team userTeam = state.getUserTeam();
+        Sport sport    = state.getCurrentSport();
+        Team userTeam  = state.getUserTeam();
+        boolean isHome = userTeam == home;
+        List<Player> fieldPlayers = isHome
+                ? matchState.getHomeFieldPlayers()
+                : matchState.getAwayFieldPlayers();
 
-        VBox panel = new VBox(12);
-        panel.getStyleClass().add("card");
-        panel.setPadding(new Insets(24));
-        panel.setMaxWidth(360);
+        // Left: pitch
+        FormationPitchView pitchView = new FormationPitchView(null);
+        pitchView.redrawWithPlayers(userTeam.getFormation(), fieldPlayers, null, null);
 
-        Label title = new Label("Tactics");
-        title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #e0e0ff;");
+        VBox leftPanel = new VBox(8);
+        leftPanel.setPadding(new Insets(16, 10, 16, 16));
+        leftPanel.setAlignment(Pos.TOP_CENTER);
+        Label pitchTitle = new Label("Formation");
+        pitchTitle.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #e0e0ff;");
+        leftPanel.getChildren().addAll(pitchTitle, new StackPane(pitchView));
+
+        // Right: controls
+        VBox rightPanel = new VBox(10);
+        rightPanel.setPadding(new Insets(16, 16, 16, 10));
+        rightPanel.setPrefWidth(220);
 
         Label formLabel = new Label("Formation");
         formLabel.getStyleClass().add("text-muted");
@@ -560,22 +625,26 @@ public class LiveMatchView extends StackPane {
         formBox.setMaxWidth(Double.MAX_VALUE);
         formBox.setOnAction(e -> {
             for (Formation f : sport.getFormations()) {
-                if (f.getFormationName().equals(formBox.getValue())) { userTeam.setFormation(f); break; }
+                if (f.getFormationName().equals(formBox.getValue())) {
+                    userTeam.setFormation(f);
+                    pitchView.redrawWithPlayers(f, fieldPlayers, null, null);
+                    break;
+                }
             }
         });
 
         Label styleLabel = new Label("Playing Style");
         styleLabel.getStyleClass().add("text-muted");
+        styleLabel.setPadding(new Insets(6, 0, 0, 0));
 
         VBox tacticBtns = new VBox(6);
         for (Tactic t : sport.getTactics()) {
             Button btn = new Button(t.getTacticName());
             btn.getStyleClass().add("btn-tactic");
             btn.setMaxWidth(Double.MAX_VALUE);
-            if (userTeam.getTactic() != null &&
-                    userTeam.getTactic().getTacticName().equals(t.getTacticName())) {
+            if (userTeam.getTactic() != null
+                    && userTeam.getTactic().getTacticName().equals(t.getTacticName()))
                 btn.getStyleClass().add("btn-tactic-active");
-            }
             btn.setOnAction(e -> {
                 userTeam.setTactic(t);
                 tacticBtns.getChildren().forEach(n -> n.getStyleClass().remove("btn-tactic-active"));
@@ -589,7 +658,13 @@ public class LiveMatchView extends StackPane {
         doneBtn.setMaxWidth(Double.MAX_VALUE);
         doneBtn.setOnAction(e -> resumeAfterOverlay());
 
-        panel.getChildren().addAll(title, formLabel, formBox, styleLabel, tacticBtns, doneBtn);
+        rightPanel.getChildren().addAll(formLabel, formBox, styleLabel, tacticBtns, doneBtn);
+
+        HBox content = new HBox(0, leftPanel, rightPanel);
+        VBox panel = new VBox(content);
+        panel.getStyleClass().add("card");
+        panel.setMaxWidth(580);
+
         showOverlay(panel);
     }
 
