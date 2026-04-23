@@ -11,6 +11,7 @@ import javafx.scene.control.*;
 import javafx.scene.layout.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Screen 4 — Squad management with player list, detail card, and formation/tactic selectors.
@@ -20,6 +21,7 @@ public class SquadManagementView extends HBox {
     private final SeasonState state;
     private final Team userTeam;
     private VBox detailPanel;
+    private FormationPitchView squadPitchView;
 
     public SquadManagementView() {
         this.state = GameManager.getInstance().getState();
@@ -56,15 +58,23 @@ public class SquadManagementView extends HBox {
 
         leftPanel.getChildren().addAll(title, scrollList, bottomControls);
 
-        // Right panel — detail card (empty initially)
+        // Right panel — formation pitch + detail card
         detailPanel = new VBox(16);
         detailPanel.setPadding(new Insets(20));
         detailPanel.setAlignment(Pos.TOP_CENTER);
         HBox.setHgrow(detailPanel, Priority.ALWAYS);
 
+        // Formation pitch always visible at top of right panel (shows first 11 with names)
+        List<Player> first11 = userTeam.getSquad().stream().limit(11).collect(Collectors.toList());
+        squadPitchView = new FormationPitchView(null);
+        squadPitchView.redrawWithPlayers(userTeam.getFormation(), first11, null, null);
+        StackPane pitchWrapper = new StackPane(squadPitchView);
+        pitchWrapper.setAlignment(Pos.CENTER);
+        detailPanel.getChildren().add(pitchWrapper);
+
         Label selectHint = new Label("Select a player to view details");
         selectHint.getStyleClass().add("text-muted");
-        selectHint.setStyle("-fx-font-size: 16px;");
+        selectHint.setStyle("-fx-font-size: 13px;");
         detailPanel.getChildren().add(selectHint);
 
         getChildren().addAll(leftPanel, detailPanel);
@@ -134,6 +144,10 @@ public class SquadManagementView extends HBox {
 
     private void showPlayerDetail(Player p) {
         detailPanel.getChildren().clear();
+        // Keep pitch view at top
+        StackPane pitchWrapper = new StackPane(squadPitchView);
+        pitchWrapper.setAlignment(Pos.CENTER);
+        detailPanel.getChildren().add(pitchWrapper);
 
         VBox card = new VBox(16);
         card.getStyleClass().add("card");
@@ -240,6 +254,10 @@ public class SquadManagementView extends HBox {
             for (Formation f : sport.getFormations()) {
                 if (f.getFormationName().equals(selected)) {
                     userTeam.setFormation(f);
+                    if (squadPitchView != null) {
+                        List<Player> top11 = userTeam.getSquad().stream().limit(11).collect(Collectors.toList());
+                        squadPitchView.redrawWithPlayers(f, top11, null, null);
+                    }
                     break;
                 }
             }
@@ -307,6 +325,8 @@ public class SquadManagementView extends HBox {
             case DEFENSIVE_MIDFIELDER -> "CDM";
             case CENTRAL_MIDFIELDER -> "CM";
             case ATTACKING_MIDFIELDER -> "CAM";
+            case LEFT_MIDFIELDER -> "LM";
+            case RIGHT_MIDFIELDER -> "RM";
             case LEFT_WINGER -> "LW";
             case RIGHT_WINGER -> "RW";
             case STRIKER -> "ST";
