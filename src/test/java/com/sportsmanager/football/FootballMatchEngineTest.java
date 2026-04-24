@@ -20,7 +20,7 @@ class FootballMatchEngineTest {
     private Team buildTeam(String id, String name) {
         Team t = new Team(id, name);
         t.addPlayer(FootballPlayer.createGoalkeeper("GK-" + id, 27,
-                65, 80, 78, 68, 83, 76));
+                65, 80, 78, 68, 83, 76, 74));
         FootballPosition[] outfield = {
                 FootballPosition.CENTRE_BACK, FootballPosition.CENTRE_BACK,
                 FootballPosition.LEFT_BACK,   FootballPosition.RIGHT_BACK,
