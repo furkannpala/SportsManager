@@ -59,8 +59,9 @@ public class SaveData {
         public int reflexes;
         public int positioning;
 
-        public int injuryGamesRemaining;
-        public int suspensionGamesRemaining;
+        public int    injuryGamesRemaining;
+        public int    suspensionGamesRemaining;
+        public double form = 7.5; // default neutral
     }
 
     public static class MatchWeekDTO {
