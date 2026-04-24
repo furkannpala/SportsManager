@@ -21,7 +21,7 @@ class FootballPlayerTest {
     @Test
     void createGoalkeeper_overallRating_usesGkWeights() {
         FootballPlayer gk = FootballPlayer.createGoalkeeper(
-                "GK", 28, 60, 85, 80, 70, 90, 75);
+                "GK", 28, 60, 85, 80, 70, 90, 75, 72);
         // GK weights: reflexes 0.30, diving 0.25, handling 0.20, positioning 0.15, pace 0.05, kicking 0.05
         int expected = (int) Math.round(60*0.05 + 85*0.25 + 80*0.20 + 70*0.05 + 90*0.30 + 75*0.15);
         assertEquals(expected, gk.getOverallRating());
@@ -45,7 +45,7 @@ class FootballPlayerTest {
     @Test
     void getAttributeValue_goalkeeper_returnsGkAttributes() {
         FootballPlayer gk = FootballPlayer.createGoalkeeper(
-                "GK", 30, 55, 88, 82, 72, 91, 78);
+                "GK", 30, 55, 88, 82, 72, 91, 78, 70);
         assertEquals(88, gk.getAttributeValue("diving"));
         assertEquals(91, gk.getAttributeValue("reflexes"));
         assertEquals(0, gk.getAttributeValue("shooting")); // outfield attr not set for GK
