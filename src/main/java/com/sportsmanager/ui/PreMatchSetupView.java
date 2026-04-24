@@ -103,6 +103,7 @@ public class PreMatchSetupView extends StackPane {
 
         // ── Formation pitch preview ───────────────────────────────────
         pitchView = new FormationPitchView(userTeam.getFormation());
+        refreshPitchView();
         StackPane pitchWrapper = new StackPane(pitchView);
         pitchWrapper.setAlignment(Pos.CENTER);
         tacticCard.getChildren().add(pitchWrapper);
@@ -124,7 +125,7 @@ public class PreMatchSetupView extends StackPane {
             for (Formation f : sport.getFormations()) {
                 if (f.getFormationName().equals(sel)) {
                     userTeam.setFormation(f);
-                    pitchView.redraw(f);
+                    refreshPitchView();
                     break;
                 }
             }
@@ -174,6 +175,13 @@ public class PreMatchSetupView extends StackPane {
         VBox.setVgrow(content, Priority.ALWAYS);
     }
 
+    // ── Pitch refresh ─────────────────────────────────────────────────
+    private void refreshPitchView() {
+        if (pitchView == null) return;
+        List<Player> starters = userTeam.getSquad().subList(0, Math.min(11, userTeam.getSquad().size()));
+        pitchView.redrawWithPlayers(userTeam.getFormation(), starters, null, null);
+    }
+
     // ── Lineup refresh & interaction ──────────────────────────────────
     private void refreshLineupCard() {
         lineupCard.getChildren().clear();
@@ -206,6 +214,7 @@ public class PreMatchSetupView extends StackPane {
         }
 
         lineupCard.getChildren().add(hintLabel);
+        refreshPitchView();
     }
 
     private void onPlayerClicked(Player clicked, HBox clickedRow) {
@@ -356,14 +365,16 @@ public class PreMatchSetupView extends StackPane {
         Label name = new Label(p.getName());
         name.getStyleClass().add("text-normal");
         name.setStyle("-fx-font-size: 12px;");
-        name.setPrefWidth(140);
+        name.setPrefWidth(130);
 
         Label badge = createPositionBadge(p);
 
         Label ovr = new Label(String.valueOf(p.getOverallRating()));
         ovr.setStyle("-fx-text-fill: #00d2ff; -fx-font-weight: bold; -fx-font-size: 12px;");
 
-        row.getChildren().addAll(name, badge, ovr);
+        StackPane staminaBar = StaminaBar.create(p, 48, 5);
+
+        row.getChildren().addAll(name, badge, ovr, staminaBar);
 
         if (p.isSuspended()) {
             Label sus = new Label("BAN " + p.getSuspensionGamesRemaining());
