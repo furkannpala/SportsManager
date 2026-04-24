@@ -4,6 +4,7 @@ import com.sportsmanager.core.Player;
 import com.sportsmanager.core.Sport;
 import com.sportsmanager.core.Team;
 import com.sportsmanager.league.FootballLeague;
+import com.sportsmanager.training.TrainingEngine;
 
 import java.util.List;
 
@@ -57,6 +58,8 @@ public class GameManager {
                 player.decrementSuspension();
             }
         }
+        // Execute weekly training for user team
+        TrainingEngine.executeWeeklyTraining(state);
     }
 
 
