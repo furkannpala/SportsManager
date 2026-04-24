@@ -1,12 +1,16 @@
 package com.sportsmanager.game;
 
 import com.sportsmanager.core.ILeague;
+import com.sportsmanager.core.Player;
 import com.sportsmanager.core.Sport;
 import com.sportsmanager.core.Team;
 import com.sportsmanager.league.Fixture;
 import com.sportsmanager.league.Standings;
+import com.sportsmanager.training.PlayerTrainingPlan;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 
 public class SeasonState {
@@ -35,6 +39,8 @@ public class SeasonState {
 
     private Sport currentSport;
 
+    /** Active training assignments for the user's squad (player → plan). */
+    private Map<Player, PlayerTrainingPlan> trainingPlans = new HashMap<>();
 
     public int getCurrentWeek()              { return currentWeek; }
     public void setCurrentWeek(int w)        { this.currentWeek = w; }
@@ -59,4 +65,15 @@ public class SeasonState {
 
     public Sport getCurrentSport()           { return currentSport; }
     public void setCurrentSport(Sport s)     { this.currentSport = s; }
+
+    public Map<Player, PlayerTrainingPlan> getTrainingPlans() { return trainingPlans; }
+    public void setTrainingPlans(Map<Player, PlayerTrainingPlan> m) { this.trainingPlans = m; }
+
+    public PlayerTrainingPlan getTrainingPlan(Player p)  { return trainingPlans.get(p); }
+
+    public void assignTraining(Player p, PlayerTrainingPlan plan) {
+        trainingPlans.put(p, plan);
+    }
+
+    public void cancelTraining(Player p) { trainingPlans.remove(p); }
 }
