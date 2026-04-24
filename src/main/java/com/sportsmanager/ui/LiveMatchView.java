@@ -454,13 +454,14 @@ public class LiveMatchView extends StackPane {
                 + " -fx-min-width: 30; -fx-min-height: 30; -fx-max-width: 30; -fx-max-height: 30;"
                 + " -fx-alignment: center;");
 
-        VBox info = new VBox(1);
+        VBox info = new VBox(2);
         Label name = new Label(p.getName());
         name.setStyle("-fx-text-fill: " + (sel ? "#00e676" : "#e0e0ff")
                 + "; -fx-font-size: 12px; -fx-font-weight: bold;");
         Label posOvr = new Label(positionName(p) + "  OVR " + p.getOverallRating());
         posOvr.setStyle("-fx-text-fill: #888899; -fx-font-size: 10px;");
-        info.getChildren().addAll(name, posOvr);
+        StackPane staminaBar = StaminaBar.create(p, 70, 4);
+        info.getChildren().addAll(name, posOvr, staminaBar);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);

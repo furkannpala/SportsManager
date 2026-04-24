@@ -3,6 +3,7 @@ package com.sportsmanager.ui;
 import com.sportsmanager.core.Formation;
 import com.sportsmanager.core.Player;
 import com.sportsmanager.core.Position;
+import com.sportsmanager.football.FootballPlayer;
 import com.sportsmanager.football.FootballPosition;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -236,7 +237,10 @@ public class FormationPitchView extends Pane {
             nameLbl.setFill(isSelected ? Color.web("#ffaaaa") : Color.WHITE);
             nameLbl.setTextAlignment(TextAlignment.CENTER);
 
-            VBox vbox = new VBox(1, circle, nameLbl);
+            // Stamina bar — shows live drain for field players
+            StackPane staminaBar = StaminaBar.create(player, R * 2, 3);
+
+            VBox vbox = new VBox(1, circle, nameLbl, staminaBar);
             vbox.setAlignment(Pos.CENTER);
             vbox.setLayoutX(x - R);
             vbox.setLayoutY(y - R);

@@ -23,6 +23,12 @@ public class FootballPlayer extends Player {
 
     private final FootballPosition position;
 
+    // Stamina: 0.0–100.0, resets to 100 at each match start, drains during the match
+    private double currentStamina = 100.0;
+
+    // Form: 5.0–10.0, neutral = 7.5. Updated by match events; drifts back weekly.
+    private double form = 7.5;
+
     private FootballPlayer(String name, int age, FootballPosition position) {
         super(name, age);
         this.position = position;
@@ -49,7 +55,8 @@ public class FootballPlayer extends Player {
      */
     public static FootballPlayer createGoalkeeper(String name, int age,
                                                   int pace, int diving, int handling,
-                                                  int kicking, int reflexes, int positioning) {
+                                                  int kicking, int reflexes, int positioning,
+                                                  int physical) {
         FootballPlayer p = new FootballPlayer(name, age, FootballPosition.GOALKEEPER);
         p.pace        = clamp(pace);
         p.diving      = clamp(diving);
@@ -57,6 +64,7 @@ public class FootballPlayer extends Player {
         p.kicking     = clamp(kicking);
         p.reflexes    = clamp(reflexes);
         p.positioning = clamp(positioning);
+        p.physical    = clamp(physical);
         return p;
     }
 
@@ -104,6 +112,40 @@ public class FootballPlayer extends Player {
             case "positioning" -> positioning = updated;
         }
     }
+    // ── Stamina ───────────────────────────────────────────────────────────────────
+
+    /** Returns current stamina as an integer 0–100. */
+    public int getCurrentStamina() { return (int) Math.round(currentStamina); }
+
+    /** Drains stamina by the given amount (stops at 0). */
+    public void drainStamina(double amount) {
+        currentStamina = Math.max(0.0, currentStamina - amount);
+    }
+
+    /** Restores stamina to full (100). Called at the start of each match. */
+    public void resetStamina() { currentStamina = 100.0; }
+
+    // ── Form ──────────────────────────────────────────────────────────────────────
+
+    /** Returns current form in [5.0, 10.0]. Neutral = 7.5. */
+    public double getForm() { return form; }
+
+    public void setForm(double f) { form = Math.max(5.0, Math.min(10.0, f)); }
+
+    /** Adjusts form by delta and clamps to [5.0, 10.0]. */
+    public void adjustForm(double delta) { setForm(form + delta); }
+
+    /**
+     * Natural weekly drift: form moves 0.08 toward 7.5.
+     * Called once per game week by the training engine.
+     */
+    public void driftForm() {
+        if (form > 7.5) form = Math.max(7.5, form - 0.08);
+        else if (form < 7.5) form = Math.min(7.5, form + 0.08);
+    }
+
+    // ── Position & attributes ─────────────────────────────────────────────────────
+
     public FootballPosition getPosition() { return position; }
 
     public int getPace()        { return pace; }
