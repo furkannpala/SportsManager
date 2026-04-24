@@ -58,10 +58,19 @@ public class FootballMatchEngine implements MatchEngine {
 
     @Override
     public MatchState initMatch(Team home, Team away) {
+        // Reset stamina for the entire squad so the new match starts fresh
+        resetSquadStamina(home);
+        resetSquadStamina(away);
         MatchState state = new MatchState(PERIODS, home.getTeamId(), away.getTeamId());
         distributeSquad(home.getAvailablePlayers(), state.getHomeFieldPlayers(), state.getHomeBenchPlayers());
         distributeSquad(away.getAvailablePlayers(), state.getAwayFieldPlayers(), state.getAwayBenchPlayers());
         return state;
+    }
+
+    private void resetSquadStamina(Team team) {
+        for (Player p : team.getSquad()) {
+            if (p instanceof FootballPlayer fp) fp.resetStamina();
+        }
     }
 
     private void distributeSquad(List<Player> available, List<Player> field, List<Player> bench) {
@@ -112,10 +121,11 @@ public class FootballMatchEngine implements MatchEngine {
             FootballMatchEvent e = generateEvent(minute, homeP, awayP, home.getTeamId(), homeAtk, awayDef, state, true);
             if (e != null) {
                 state.addEvent(e);
-                if (e.getEventType() == FootballEventType.GOAL)     state.incrementHomeScore();
-                if (e.getEventType() == FootballEventType.RED_CARD) { e.getInvolvedPlayer().applySuspension(generateSuspensionDuration()); state.decrementHomeActivePlayers(); removeSendOffPlayer(e, state.getHomeFieldPlayers()); }
-                if (e.getEventType() == FootballEventType.INJURY)   { removeSendOffPlayer(e, state.getHomeFieldPlayers()); }
+                if (e.getEventType() == FootballEventType.GOAL)     { state.incrementHomeScore(); applyFormGoal(e); }
+                if (e.getEventType() == FootballEventType.RED_CARD) { adjustForm(e.getInvolvedPlayer(), -0.8); e.getInvolvedPlayer().applySuspension(generateSuspensionDuration()); state.decrementHomeActivePlayers(); removeSendOffPlayer(e, state.getHomeFieldPlayers()); }
+                if (e.getEventType() == FootballEventType.INJURY)   { adjustForm(e.getInvolvedPlayer(), -0.3); removeSendOffPlayer(e, state.getHomeFieldPlayers()); }
                 if (e.getEventType() == FootballEventType.YELLOW_CARD) {
+                    adjustForm(e.getInvolvedPlayer(), -0.2);
                     if (state.recordYellowCard(e.getInvolvedPlayer())) {
                         e.getInvolvedPlayer().applySuspension(generateSuspensionDuration());
                         FootballMatchEvent red = new FootballMatchEvent(
@@ -136,10 +146,11 @@ public class FootballMatchEngine implements MatchEngine {
             FootballMatchEvent e = generateEvent(minute, awayP, homeP, away.getTeamId(), awayAtk, homeDef, state, false);
             if (e != null) {
                 state.addEvent(e);
-                if (e.getEventType() == FootballEventType.GOAL)     state.incrementAwayScore();
-                if (e.getEventType() == FootballEventType.RED_CARD) { e.getInvolvedPlayer().applySuspension(generateSuspensionDuration()); state.decrementAwayActivePlayers(); removeSendOffPlayer(e, state.getAwayFieldPlayers()); }
-                if (e.getEventType() == FootballEventType.INJURY)   { removeSendOffPlayer(e, state.getAwayFieldPlayers()); }
+                if (e.getEventType() == FootballEventType.GOAL)     { state.incrementAwayScore(); applyFormGoal(e); }
+                if (e.getEventType() == FootballEventType.RED_CARD) { adjustForm(e.getInvolvedPlayer(), -0.8); e.getInvolvedPlayer().applySuspension(generateSuspensionDuration()); state.decrementAwayActivePlayers(); removeSendOffPlayer(e, state.getAwayFieldPlayers()); }
+                if (e.getEventType() == FootballEventType.INJURY)   { adjustForm(e.getInvolvedPlayer(), -0.3); removeSendOffPlayer(e, state.getAwayFieldPlayers()); }
                 if (e.getEventType() == FootballEventType.YELLOW_CARD) {
+                    adjustForm(e.getInvolvedPlayer(), -0.2);
                     if (state.recordYellowCard(e.getInvolvedPlayer())) {
                         e.getInvolvedPlayer().applySuspension(generateSuspensionDuration());
                         FootballMatchEvent red = new FootballMatchEvent(
@@ -151,6 +162,10 @@ public class FootballMatchEngine implements MatchEngine {
                 }
             }
         }
+
+        // Drain stamina each minute
+        drainStamina(homeP);
+        drainStamina(awayP);
 
         // Period / match end
         if (minute >= end) {
@@ -338,7 +353,57 @@ public class FootballMatchEngine implements MatchEngine {
         if (roll < 0.90) return 3 + random.nextInt(3);
         return 6 + random.nextInt(5);
     }
-    // Utility
+    // ── Stamina ──────────────────────────────────────────────────────────────────
+
+    /**
+     * Drains each field player's stamina by one minute's worth.
+     * Rate depends on position (wingers tire fastest, defenders slowest)
+     * and the player's physical attribute (higher physical → slower drain).
+     *
+     * Calibration: a winger with physical=60 hits 30 % (yellow) around minute 55,
+     * while a CB with physical=90 stays above 50 % for the full 90 minutes.
+     */
+    private void drainStamina(List<FootballPlayer> players) {
+        for (FootballPlayer p : players) {
+            double base     = baseDrainRate(p.getPosition());
+            // physical 60 → factor 1.0 (baseline); higher physical slows drain
+            double physFact = Math.max(20, p.getPhysical()) / 60.0;
+            p.drainStamina(base / physFact);
+        }
+    }
+
+    // ── Form ─────────────────────────────────────────────────────────────────────
+
+    private void adjustForm(com.sportsmanager.core.Player p, double delta) {
+        if (p instanceof FootballPlayer fp) fp.adjustForm(delta);
+    }
+
+    /** Applies form bonus to goal scorer (+0.3) and assister (+0.15). */
+    private void applyFormGoal(FootballMatchEvent e) {
+        adjustForm(e.getInvolvedPlayer(), +0.3);
+        if (e.getSecondaryPlayer() != null) adjustForm(e.getSecondaryPlayer(), +0.15);
+    }
+
+    /** Base stamina drain per minute (at physical = 60). */
+    private double baseDrainRate(FootballPosition pos) {
+        return switch (pos) {
+            case GOALKEEPER           -> 0.50;
+            case CENTRE_BACK          -> 0.68;
+            case LEFT_BACK,
+                 RIGHT_BACK           -> 0.76;
+            case DEFENSIVE_MIDFIELDER -> 0.82;
+            case CENTRAL_MIDFIELDER   -> 0.88;
+            case ATTACKING_MIDFIELDER -> 0.94;
+            case LEFT_MIDFIELDER,
+                 RIGHT_MIDFIELDER     -> 0.92;
+            case LEFT_WINGER,
+                 RIGHT_WINGER         -> 1.00;
+            case STRIKER              -> 0.94;
+            case CENTRE_FORWARD       -> 0.90;
+        };
+    }
+
+    // ── Utility ──────────────────────────────────────────────────────────────────
     private FootballTactic resolveTactic(Team team) {
         if (team.getTactic() instanceof FootballTactic ft) return ft;
         return FootballTactic.BALANCED;

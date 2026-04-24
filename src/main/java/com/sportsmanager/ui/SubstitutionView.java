@@ -12,6 +12,7 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
+import javafx.scene.layout.StackPane;
 
 import java.util.List;
 
@@ -180,7 +181,8 @@ public class SubstitutionView extends HBox {
                 + "; -fx-font-size: 13px; -fx-font-weight: bold;");
         Label pos = new Label(posName(p) + "  ·  OVR " + p.getOverallRating());
         pos.setStyle("-fx-text-fill: #888899; -fx-font-size: 11px;");
-        info.getChildren().addAll(name, pos);
+        StackPane staminaBar = StaminaBar.create(p, 80, 5);
+        info.getChildren().addAll(name, pos, staminaBar);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
