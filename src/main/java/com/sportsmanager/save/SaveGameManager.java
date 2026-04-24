@@ -193,6 +193,7 @@ public class SaveGameManager {
             dto.kicking     = fp.getKicking();
             dto.reflexes    = fp.getReflexes();
             dto.positioning = fp.getPositioning();
+            dto.form        = fp.getForm();
         }
         return dto;
     }
@@ -305,7 +306,7 @@ public class SaveGameManager {
         if (position == FootballPosition.GOALKEEPER) {
             player = FootballPlayer.createGoalkeeper(
                     d.name, d.age,
-                    d.pace, d.diving, d.handling, d.kicking, d.reflexes, d.positioning);
+                    d.pace, d.diving, d.handling, d.kicking, d.reflexes, d.positioning, d.physical);
         } else {
             player = FootballPlayer.createOutfield(
                     d.name, d.age, position,
@@ -313,6 +314,7 @@ public class SaveGameManager {
         }
         if (d.injuryGamesRemaining > 0)     player.applyInjury(d.injuryGamesRemaining);
         if (d.suspensionGamesRemaining > 0) player.applySuspension(d.suspensionGamesRemaining);
+        player.setForm(d.form);
         return player;
     }
 
