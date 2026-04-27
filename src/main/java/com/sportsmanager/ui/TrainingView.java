@@ -141,7 +141,11 @@ public class TrainingView extends HBox {
             statusLbl = new Label("Injured");
             statusLbl.setStyle("-fx-text-fill: #ff5252; -fx-font-size: 10px; -fx-font-weight: bold;");
         } else if (plan != null) {
-            statusLbl = new Label(plan.getWeeksRemaining() + "w left");
+            if (fp.getAge() >= 30) {
+                statusLbl = new Label("Maintenance");
+            } else {
+                statusLbl = new Label(plan.getWeeksRemaining() + "w left");
+            }
             statusLbl.setStyle("-fx-text-fill: #00d2ff; -fx-font-size: 10px;");
         } else {
             statusLbl = new Label("Free");
@@ -369,7 +373,16 @@ public class TrainingView extends HBox {
             }
         }
 
-        Label durationLbl = new Label("Duration: " + opt.getDurationDisplay());
+        String durationDisplay;
+        if (fp.getAge() >= 30) {
+            durationDisplay = "Maintenance";
+        } else {
+            double fF = com.sportsmanager.training.TrainingEngine.formFactor(fp.getForm());
+            double aF = com.sportsmanager.training.TrainingEngine.ageFactor(fp.getAge());
+            int expectedWeeks = (int) Math.max(1, Math.round(((opt.getMinWeeks() + opt.getMaxWeeks()) / 2.0) * (1.0 / fF) * (1.0 / aF)));
+            durationDisplay = expectedWeeks + " week" + (expectedWeeks == 1 ? "" : "s");
+        }
+        Label durationLbl = new Label("Duration: " + durationDisplay);
         durationLbl.setStyle("-fx-text-fill: #555577; -fx-font-size: 10px;");
 
         info.getChildren().addAll(nameLbl, descLbl, attrRow, durationLbl);
@@ -384,17 +397,27 @@ public class TrainingView extends HBox {
             int remaining = activePlan.getWeeksRemaining();
             int done      = total - remaining;
 
-            Label progressLbl = new Label(remaining + " week" + (remaining == 1 ? "" : "s") + " left");
-            progressLbl.setStyle("-fx-text-fill: #00d2ff; -fx-font-size: 11px; -fx-font-weight: bold;");
-
-            // Mini pip-bar
+            Label progressLbl;
             HBox bars = new HBox(2);
             bars.setAlignment(Pos.CENTER_RIGHT);
-            for (int i = 0; i < total; i++) {
-                Rectangle bar = new Rectangle(8, 6);
+
+            if (fp.getAge() >= 30) {
+                progressLbl = new Label("Maintenance");
+                progressLbl.setStyle("-fx-text-fill: #00d2ff; -fx-font-size: 11px; -fx-font-weight: bold;");
+                Rectangle bar = new Rectangle(12, 6);
                 bar.setArcWidth(3); bar.setArcHeight(3);
-                bar.setFill(Color.web(i < done ? "#27ae60" : "#2a2a4a"));
+                bar.setFill(Color.web("#27ae60"));
                 bars.getChildren().add(bar);
+            } else {
+                progressLbl = new Label(remaining + " week" + (remaining == 1 ? "" : "s") + " left");
+                progressLbl.setStyle("-fx-text-fill: #00d2ff; -fx-font-size: 11px; -fx-font-weight: bold;");
+
+                for (int i = 0; i < total; i++) {
+                    Rectangle bar = new Rectangle(8, 6);
+                    bar.setArcWidth(3); bar.setArcHeight(3);
+                    bar.setFill(Color.web(i < done ? "#27ae60" : "#2a2a4a"));
+                    bars.getChildren().add(bar);
+                }
             }
 
             Button cancelBtn = new Button("Cancel");
@@ -530,9 +553,8 @@ public class TrainingView extends HBox {
     }
 
     private String developmentHint(int age) {
-        if (age < 21) return "Young — Fast development";
-        if (age < 28) return "Prime — Normal development";
-        if (age < 32) return "Mature — Slow development";
+        if (age < 24) return "Young — Fast development";
+        if (age < 30) return "Prime — Normal development";
         return "Veteran — Maintenance mode";
     }
 

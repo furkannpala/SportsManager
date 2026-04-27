@@ -112,6 +112,24 @@ public class FootballPlayer extends Player {
             case "positioning" -> positioning = updated;
         }
     }
+
+    public void decreaseAttribute(String attributeName, int amount) {
+        int current = getAttributeValue(attributeName);
+        int updated = clamp(current - amount);
+        switch (attributeName.toLowerCase()) {
+            case "pace"        -> pace        = updated;
+            case "shooting"    -> shooting    = updated;
+            case "passing"     -> passing     = updated;
+            case "dribbling"   -> dribbling   = updated;
+            case "defending"   -> defending   = updated;
+            case "physical"    -> physical    = updated;
+            case "diving"      -> diving      = updated;
+            case "handling"    -> handling    = updated;
+            case "kicking"     -> kicking     = updated;
+            case "reflexes"    -> reflexes    = updated;
+            case "positioning" -> positioning = updated;
+        }
+    }
     // ── Stamina ───────────────────────────────────────────────────────────────────
 
     /** Returns current stamina as an integer 0–100. */
