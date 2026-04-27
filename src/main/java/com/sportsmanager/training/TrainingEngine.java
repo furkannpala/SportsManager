@@ -51,17 +51,30 @@ public final class TrainingEngine {
 
         finished.forEach(plans::remove);
 
-        // Weekly form drift for entire user squad
+        // Weekly form drift and slow decline for entire user squad
         for (Player p : state.getUserTeam().getSquad()) {
-            if (p instanceof FootballPlayer fp) fp.driftForm();
+            if (p instanceof FootballPlayer fp) {
+                fp.driftForm();
+                
+                // Slow decline for Veterans not in active training
+                if (fp.getAge() >= 30 && !plans.containsKey(fp)) {
+                    if (RANDOM.nextDouble() < 0.15) { // 15% chance to drop one random attribute
+                        List<String> attrs = allAttrsFor(fp.getPosition());
+                        String randomAttr = attrs.get(RANDOM.nextInt(attrs.size()));
+                        if (fp.getAttributeValue(randomAttr) > 1) {
+                            fp.decreaseAttribute(randomAttr, 1);
+                        }
+                    }
+                }
+            }
         }
     }
 
     // ── Gain calculation ──────────────────────────────────────────────────────────
 
     private static void applyGain(FootballPlayer player, PositionalTrainingOption option) {
-        double ageFactor  = ageFactor(player.getAge());
-        double formFactor = formFactor(player.getForm());
+        double ageFactor     = ageFactor(player.getAge());
+        double formFactor    = formFactor(player.getForm());
         double sessionFactor = option.isBalanced() ? BALANCED_FACTOR : 1.0;
 
         List<String> attrs = option.isBalanced()
@@ -69,13 +82,18 @@ public final class TrainingEngine {
                 : option.getAttributes();
 
         for (String attr : attrs) {
+            // Skip attributes that are already maxed out
+            if (player.getAttributeValue(attr) >= 100) continue;
+
             double posFactor = positionalFactor(player.getPosition(), attr);
-            double noise     = (RANDOM.nextDouble() * 0.4) - 0.2; // ±0.2
-            double gain      = BASE_GAIN * ageFactor * formFactor * posFactor * sessionFactor + noise;
-            gain = Math.max(0, gain);
+            double baseGain  = BASE_GAIN * ageFactor * formFactor * posFactor * sessionFactor;
+
+            // Proportional noise (±20% of base gain) so age differences stay visible
+            double noise = baseGain * (RANDOM.nextDouble() * 0.4 - 0.2);
+            double gain  = Math.max(0, baseGain + noise);
 
             // Probabilistic application so fractional gains accumulate correctly
-            int whole = (int) gain;
+            int whole  = (int) gain;
             double frac = gain - whole;
             int actual = whole + (RANDOM.nextDouble() < frac ? 1 : 0);
             if (actual > 0) player.increaseAttribute(attr, actual);
@@ -87,11 +105,10 @@ public final class TrainingEngine {
     /**
      * Young players develop quickly; old players barely improve (maintenance mode).
      */
-    static double ageFactor(int age) {
-        if (age < 21) return 1.40; // fast growth
-        if (age < 28) return 1.00; // prime
-        if (age < 32) return 0.40; // decline
-        return 0.10;               // maintenance — training keeps attributes stable
+    public static double ageFactor(int age) {
+        if (age < 24) return 1.40; // Young — Fast development
+        if (age < 30) return 1.00; // Prime — Normal development
+        return 0.0;                // Veteran — Maintenance mode
     }
 
     // ── Form factor ───────────────────────────────────────────────────────────────
@@ -100,7 +117,7 @@ public final class TrainingEngine {
      * High form boosts training gains; poor form reduces them significantly.
      * Scale: 5 (very bad) → 0.35, 7.5 (neutral) → 1.0, 10 (very good) → 1.5.
      */
-    static double formFactor(double form) {
+    public static double formFactor(double form) {
         if (form >= 8.5) return 1.50;
         if (form >= 7.5) return 1.20;
         if (form >= 6.5) return 1.00;

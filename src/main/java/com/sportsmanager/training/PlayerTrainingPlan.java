@@ -14,11 +14,19 @@ public final class PlayerTrainingPlan {
     private int weeksRemaining;
     private final int totalWeeks;
 
-    /** Creates a new plan; duration is rolled randomly from the option's range. */
+    /** Creates a new plan; duration is rolled dynamically based on form and age. */
     public PlayerTrainingPlan(FootballPlayer player, PositionalTrainingOption option) {
         this.player         = player;
         this.option         = option;
-        this.totalWeeks     = option.generateDuration();
+        
+        if (player.getAge() >= 30) {
+            this.totalWeeks = Integer.MAX_VALUE;
+        } else {
+            double formFactor = com.sportsmanager.training.TrainingEngine.formFactor(player.getForm());
+            double ageFactor = com.sportsmanager.training.TrainingEngine.ageFactor(player.getAge());
+            int baseWeeks = option.generateDuration();
+            this.totalWeeks = (int) Math.max(1, Math.round(baseWeeks * (1.0 / formFactor) * (1.0 / ageFactor)));
+        }
         this.weeksRemaining = this.totalWeeks;
     }
 
@@ -42,6 +50,7 @@ public final class PlayerTrainingPlan {
      * @return true if the plan just completed.
      */
     public boolean tick() {
+        if (this.totalWeeks == Integer.MAX_VALUE) return false;
         if (weeksRemaining > 0) weeksRemaining--;
         return weeksRemaining <= 0;
     }
