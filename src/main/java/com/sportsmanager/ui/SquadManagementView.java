@@ -200,12 +200,7 @@ public class SquadManagementView extends HBox {
         card.getChildren().add(attrTitle);
 
         Sport sport = state.getCurrentSport();
-        List<String> attrNames;
-        if (p instanceof FootballPlayer fp) {
-            attrNames = sport.getAttributeNamesForPosition(fp.getPosition());
-        } else {
-            attrNames = sport.getPlayerAttributeNames();
-        }
+        List<String> attrNames = sport.getAttributeNamesForPosition(p.getPosition());
 
         for (String attr : attrNames) {
             int val = p.getAttributeValue(attr);
@@ -291,29 +286,46 @@ public class SquadManagementView extends HBox {
     }
 
     private Label createPositionBadge(Player p) {
+        Position pos = p.getPosition();
         String posName;
         String badgeClass;
 
-        if (p instanceof FootballPlayer fp) {
-            FootballPosition pos = fp.getPosition();
-            posName = getShortPosition(pos);
-            if (pos == FootballPosition.GOALKEEPER) {
-                badgeClass = "badge-gk";
-            } else if (pos.isDefensive()) {
-                badgeClass = "badge-def";
-            } else if (pos.isMidfield()) {
-                badgeClass = "badge-mid";
-            } else {
-                badgeClass = "badge-fwd";
-            }
+        if (pos instanceof FootballPosition fp) {
+            posName = getShortPosition(fp);
+            if (fp == FootballPosition.GOALKEEPER) badgeClass = "badge-gk";
+            else if (fp.isDefensive())             badgeClass = "badge-def";
+            else if (fp.isMidfield())              badgeClass = "badge-mid";
+            else                                   badgeClass = "badge-fwd";
         } else {
-            posName = "?";
-            badgeClass = "badge-def";
+            posName    = abbreviatePosition(pos);
+            badgeClass = genericBadgeClass(pos);
         }
 
         Label badge = new Label(posName);
         badge.getStyleClass().addAll("badge", badgeClass);
         return badge;
+    }
+
+    private String abbreviatePosition(Position pos) {
+        if (pos == null) return "?";
+        String name = pos.getName();
+        if (name.toLowerCase().startsWith("goalkeeper")) return "GK";
+        String[] words = name.split("\\s+");
+        if (words.length == 1)
+            return name.length() >= 2 ? name.substring(0, 2).toUpperCase() : name.toUpperCase();
+        StringBuilder sb = new StringBuilder();
+        for (String w : words) if (!w.isEmpty()) sb.append(Character.toUpperCase(w.charAt(0)));
+        String abbr = sb.toString();
+        return abbr.length() > 3 ? abbr.substring(0, 3) : abbr;
+    }
+
+    private String genericBadgeClass(Position pos) {
+        if (pos == null) return "badge-def";
+        String name = pos.getName().toLowerCase();
+        if (name.contains("goalkeeper")) return "badge-gk";
+        if (name.contains("back"))       return "badge-def";
+        if (name.contains("wing"))       return "badge-fwd";
+        return "badge-mid";
     }
 
     private String getShortPosition(FootballPosition pos) {

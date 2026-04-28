@@ -4,6 +4,9 @@ import com.sportsmanager.core.Player;
 import com.sportsmanager.core.Sport;
 import com.sportsmanager.core.Team;
 import com.sportsmanager.football.FootballPlayerFactory;
+import com.sportsmanager.generator.PlayerFactory;
+import com.sportsmanager.handball.HandballPlayerFactory;
+import com.sportsmanager.handball.HandballSport;
 import com.sportsmanager.game.GameManager;
 import com.sportsmanager.generator.NameGenerator;
 import com.sportsmanager.generator.TeamGenerator;
@@ -44,8 +47,10 @@ public class TeamAssignmentView extends VBox {
     // ── Generation ────────────────────────────────────────────────────────────
 
     private void generateTeams() {
-        TeamGenerator generator = new TeamGenerator(
-                sport, new FootballPlayerFactory(), new NameGenerator());
+        PlayerFactory factory = sport instanceof HandballSport
+                ? new HandballPlayerFactory()
+                : new FootballPlayerFactory();
+        TeamGenerator generator = new TeamGenerator(sport, factory, new NameGenerator());
         allTeams = generator.generateLeague();
 
         // Assign a unique random logo to each team

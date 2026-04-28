@@ -2,6 +2,7 @@ package com.sportsmanager.ui;
 
 import com.sportsmanager.core.Sport;
 import com.sportsmanager.football.FootballSport;
+import com.sportsmanager.handball.HandballSport;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.Button;
@@ -37,7 +38,8 @@ public class SportSelectionView extends VBox {
         sportCards.setAlignment(Pos.CENTER);
 
         List<SportOption> options = List.of(
-            new SportOption(new FootballSport(), "⚽", "The beautiful game. Manage a 20-team league,\nbuild your squad, and compete for glory.")
+            new SportOption(new FootballSport(), "⚽", "The beautiful game. Manage a 20-team league,\nbuild your squad, and compete for glory."),
+            new SportOption(new HandballSport(), "🤾", "Fast-paced court action. Lead your handball\nclub through a full league season.")
         );
 
         for (SportOption opt : options) {
@@ -66,15 +68,17 @@ public class SportSelectionView extends VBox {
 
         getChildren().addAll(title, subtitle, sportCards, buttons);
 
-        // Auto-select first
-        if (!options.isEmpty()) {
+        // Auto-select first card
+        if (!options.isEmpty() && !sportCards.getChildren().isEmpty()) {
             selectedSport = options.get(0).sport;
+            selectedCard  = (VBox) sportCards.getChildren().get(0);
+            selectedCard.getStyleClass().add("card-selected");
         }
     }
 
     private VBox createSportCard(SportOption opt) {
         VBox card = new VBox(12);
-        card.getStyleClass().addAll("card", "card-selected");
+        card.getStyleClass().add("card");
         card.setAlignment(Pos.CENTER);
         card.setPadding(new Insets(30));
         card.setPrefWidth(280);
@@ -92,8 +96,6 @@ public class SportSelectionView extends VBox {
         desc.setStyle("-fx-text-alignment: center;");
 
         card.getChildren().addAll(icon, name, desc);
-
-        selectedCard = card;
 
         card.setOnMouseClicked(e -> {
             if (selectedCard != null) {

@@ -24,9 +24,9 @@ public abstract class Player {
 
     // Abstract methods — implemented differently by each sport
 
+    public abstract Position getPosition();
 
     public abstract int getOverallRating();
-
 
     public abstract int getAttributeValue(String name);
 

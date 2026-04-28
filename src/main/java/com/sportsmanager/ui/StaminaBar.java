@@ -1,6 +1,7 @@
 package com.sportsmanager.ui;
 
 import com.sportsmanager.football.FootballPlayer;
+import com.sportsmanager.handball.HandballPlayer;
 import com.sportsmanager.core.Player;
 import javafx.geometry.Pos;
 import javafx.scene.layout.StackPane;
@@ -36,7 +37,10 @@ public final class StaminaBar {
      * @param height  height in pixels (also used as corner radius)
      */
     public static StackPane create(Player player, double width, double height) {
-        int stamina = (player instanceof FootballPlayer fp) ? fp.getCurrentStamina() : 100;
+        int stamina;
+        if      (player instanceof FootballPlayer fp) stamina = fp.getCurrentStamina();
+        else if (player instanceof HandballPlayer hp) stamina = hp.getCurrentStamina();
+        else                                          stamina = 100;
         return build(stamina, width, height);
     }
 

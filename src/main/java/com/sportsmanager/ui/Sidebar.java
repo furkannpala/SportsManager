@@ -36,13 +36,18 @@ public class Sidebar extends VBox {
         VBox header = new VBox(4);
         header.getStyleClass().add("sidebar-header");
 
-        Label logo = new Label("⚽");
+        SeasonState state = GameManager.getInstance().getState();
+
+        String sportEmoji = "⚽";
+        if (state != null) {
+            String sportName = state.getCurrentSport().getSportName().toLowerCase();
+            if (sportName.contains("handball")) sportEmoji = "🤾";
+        }
+        Label logo = new Label(sportEmoji);
         logo.getStyleClass().add("sidebar-logo");
 
         Label title = new Label("Sports Manager");
         title.getStyleClass().add("sidebar-title");
-
-        SeasonState state = GameManager.getInstance().getState();
         if (state != null) {
             Label teamLabel = new Label(state.getUserTeam().getTeamName());
             teamLabel.getStyleClass().add("sidebar-subtitle");
