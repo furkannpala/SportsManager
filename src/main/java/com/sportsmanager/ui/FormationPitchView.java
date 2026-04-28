@@ -26,17 +26,12 @@ import java.util.List;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
-/**
- * Top-down pitch view. Two modes:
- *  - redraw(formation)               → position abbreviations only (LW, ST, …)
- *  - redrawWithPlayers(…)            → EA FC style: OVR inside circle + surname below,
- *                                      optional click / DnD callbacks per node.
- */
+
 public class FormationPitchView extends Pane {
 
     static final double W = 260.0;
     static final double H = 360.0;
-    static final double R = 16.0;   // circle radius
+    static final double R = 16.0;
 
     private static final Color C_GK  = Color.web("#c8960a");
     private static final Color C_DEF = Color.web("#1255a8");
@@ -58,17 +53,12 @@ public class FormationPitchView extends Pane {
         if (formation != null) drawFormation(formation);
     }
 
-    /** Players paired by index with formation slots (slot 0 = GK = player 0). */
     public void redrawWithPlayers(Formation formation, List<Player> players,
                                    Player selectedOut,
                                    Consumer<Player> onPlayerClick) {
         redrawWithPlayers(formation, players, selectedOut, onPlayerClick, null);
     }
 
-    /**
-     * Same as above plus a nodeDecorator called on every player node after creation —
-     * use it to attach DnD handlers in the caller.
-     */
     public void redrawWithPlayers(Formation formation, List<Player> players,
                                    Player selectedOut,
                                    Consumer<Player> onPlayerClick,
@@ -129,12 +119,12 @@ public class FormationPitchView extends Pane {
         double[] yPos = computeYPositions(counts.length);
         int idx = 0;
 
-        placePositionNode((FootballPosition) slots.get(idx++), W / 2, yPos[0]);
+        placePositionNode(slots.get(idx++), W / 2, yPos[0]);
 
         for (int layer = 0; layer < counts.length; layer++) {
-            List<FootballPosition> row = new ArrayList<>();
+            List<Position> row = new ArrayList<>();
             for (int i = 0; i < counts[layer] && idx < slots.size(); i++)
-                row.add((FootballPosition) slots.get(idx++));
+                row.add(slots.get(idx++));
             row.sort(Comparator.comparingInt(this::xSortKey));
             double y = yPos[layer + 1];
             for (int i = 0; i < row.size(); i++)
@@ -142,7 +132,7 @@ public class FormationPitchView extends Pane {
         }
     }
 
-    private void placePositionNode(FootballPosition pos, double x, double y) {
+    private void placePositionNode(Position pos, double x, double y) {
         String text = abbr(pos);
         Circle bg = new Circle(R, nodeColor(pos));
         bg.setStroke(Color.WHITE);
@@ -171,17 +161,17 @@ public class FormationPitchView extends Pane {
         int idx = 0;
 
         // GK
-        FootballPosition gkPos = (FootballPosition) slots.get(idx);
+        Position gkPos = slots.get(idx);
         Player gkPlayer = idx < players.size() ? players.get(idx) : null;
         placePlayerNode(gkPos, gkPlayer, W / 2, yPos[0],
                 gkPlayer != null && gkPlayer == selectedOut, onPlayerClick, decorator);
         idx++;
 
         for (int layer = 0; layer < counts.length; layer++) {
-            List<FootballPosition> rowPos = new ArrayList<>();
+            List<Position> rowPos = new ArrayList<>();
             List<Player> rowPlayers = new ArrayList<>();
             for (int i = 0; i < counts[layer] && idx < slots.size(); i++) {
-                rowPos.add((FootballPosition) slots.get(idx));
+                rowPos.add(slots.get(idx));
                 rowPlayers.add(idx < players.size() ? players.get(idx) : null);
                 idx++;
             }
@@ -199,11 +189,7 @@ public class FormationPitchView extends Pane {
         }
     }
 
-    /**
-     * EA FC-style node: coloured circle with OVR (or pos abbr) inside,
-     * player surname below the circle.
-     */
-    private void placePlayerNode(FootballPosition pos, Player player,
+    private void placePlayerNode(Position pos, Player player,
                                   double x, double y,
                                   boolean isSelected,
                                   Consumer<Player> onPlayerClick,
@@ -216,11 +202,9 @@ public class FormationPitchView extends Pane {
         bg.setStroke(borderColor);
         bg.setStrokeWidth(borderWidth);
 
-        // Inside circle: OVR rating when player is known, else position abbr
         String innerText = player != null ? String.valueOf(player.getOverallRating()) : abbr(pos);
         Text innerLbl = new Text(innerText);
-        innerLbl.setFont(Font.font("System", FontWeight.BOLD,
-                innerText.length() >= 3 ? 8.0 : 10.0));
+        innerLbl.setFont(Font.font("System", FontWeight.BOLD, innerText.length() >= 3 ? 8.0 : 10.0));
         innerLbl.setFill(Color.WHITE);
         innerLbl.setTextAlignment(TextAlignment.CENTER);
 
@@ -237,7 +221,6 @@ public class FormationPitchView extends Pane {
             nameLbl.setFill(isSelected ? Color.web("#ffaaaa") : Color.WHITE);
             nameLbl.setTextAlignment(TextAlignment.CENTER);
 
-            // Stamina bar — shows live drain for field players
             StackPane staminaBar = StaminaBar.create(player, R * 2, 3);
 
             VBox vbox = new VBox(1, circle, nameLbl, staminaBar);
@@ -269,9 +252,9 @@ public class FormationPitchView extends Pane {
     // ── Y positions ─────────────────────────────────────────────────────────────
 
     private double[] computeYPositions(int numNonGkLayers) {
-        double yGk  = H - 32;   // GK near bottom (leaves room for name label below)
-        double yDef = H - 88;   // defender band
-        double yAtt = 30;       // attacker band near top
+        double yGk  = H - 32;
+        double yDef = H - 88;
+        double yAtt = 30;
         double[] y  = new double[numNonGkLayers + 1];
         y[0] = yGk;
         if (numNonGkLayers <= 1) {
@@ -294,15 +277,22 @@ public class FormationPitchView extends Pane {
         return margin + usable * index / (total - 1);
     }
 
-    private int xSortKey(FootballPosition pos) {
-        return switch (pos) {
-            case LEFT_BACK, LEFT_WINGER  -> 0;
-            case LEFT_MIDFIELDER         -> 2;
-            case CENTRE_BACK, CENTRAL_MIDFIELDER, DEFENSIVE_MIDFIELDER,
-                 ATTACKING_MIDFIELDER, GOALKEEPER, STRIKER, CENTRE_FORWARD -> 5;
-            case RIGHT_MIDFIELDER        -> 8;
-            case RIGHT_BACK, RIGHT_WINGER -> 10;
-        };
+    private int xSortKey(Position pos) {
+        if (pos instanceof FootballPosition fp) {
+            return switch (fp) {
+                case LEFT_BACK, LEFT_WINGER  -> 0;
+                case LEFT_MIDFIELDER         -> 2;
+                case CENTRE_BACK, CENTRAL_MIDFIELDER, DEFENSIVE_MIDFIELDER,
+                     ATTACKING_MIDFIELDER, GOALKEEPER, STRIKER, CENTRE_FORWARD -> 5;
+                case RIGHT_MIDFIELDER        -> 8;
+                case RIGHT_BACK, RIGHT_WINGER -> 10;
+            };
+        }
+        // Generic fallback: sort by "left" / "right" in the position name
+        String name = pos.getName().toLowerCase();
+        if (name.contains("left"))  return name.contains("wing") ? 0 : 2;
+        if (name.contains("right")) return name.contains("wing") ? 10 : 8;
+        return 5;
     }
 
     // ── Formation name parsing ───────────────────────────────────────────────────
@@ -323,28 +313,46 @@ public class FormationPitchView extends Pane {
 
     // ── Labels & colours ─────────────────────────────────────────────────────────
 
-    private String abbr(FootballPosition pos) {
-        return switch (pos) {
-            case GOALKEEPER           -> "GK";
-            case CENTRE_BACK          -> "CB";
-            case LEFT_BACK            -> "LB";
-            case RIGHT_BACK           -> "RB";
-            case DEFENSIVE_MIDFIELDER -> "CDM";
-            case CENTRAL_MIDFIELDER   -> "CM";
-            case LEFT_MIDFIELDER      -> "LM";
-            case RIGHT_MIDFIELDER     -> "RM";
-            case ATTACKING_MIDFIELDER -> "CAM";
-            case LEFT_WINGER          -> "LW";
-            case RIGHT_WINGER         -> "RW";
-            case STRIKER              -> "ST";
-            case CENTRE_FORWARD       -> "CF";
-        };
+    private String abbr(Position pos) {
+        if (pos instanceof FootballPosition fp) {
+            return switch (fp) {
+                case GOALKEEPER           -> "GK";
+                case CENTRE_BACK          -> "CB";
+                case LEFT_BACK            -> "LB";
+                case RIGHT_BACK           -> "RB";
+                case DEFENSIVE_MIDFIELDER -> "CDM";
+                case CENTRAL_MIDFIELDER   -> "CM";
+                case LEFT_MIDFIELDER      -> "LM";
+                case RIGHT_MIDFIELDER     -> "RM";
+                case ATTACKING_MIDFIELDER -> "CAM";
+                case LEFT_WINGER          -> "LW";
+                case RIGHT_WINGER         -> "RW";
+                case STRIKER              -> "ST";
+                case CENTRE_FORWARD       -> "CF";
+            };
+        }
+        // Generic: initials of each word, capped at 3 chars
+        String name = pos.getName();
+        if (name.toLowerCase().startsWith("goalkeeper")) return "GK";
+        String[] words = name.split("\\s+");
+        StringBuilder sb = new StringBuilder();
+        for (String w : words) if (!w.isEmpty()) sb.append(Character.toUpperCase(w.charAt(0)));
+        String result = sb.toString();
+        return result.length() > 3 ? result.substring(0, 3) : result;
     }
 
-    private Color nodeColor(FootballPosition pos) {
-        if (pos == FootballPosition.GOALKEEPER) return C_GK;
-        if (pos.isDefensive())                  return C_DEF;
-        if (pos.isMidfield())                   return C_MID;
-        return C_ATT;
+    private Color nodeColor(Position pos) {
+        if (pos instanceof FootballPosition fp) {
+            if (fp == FootballPosition.GOALKEEPER) return C_GK;
+            if (fp.isDefensive())                  return C_DEF;
+            if (fp.isMidfield())                   return C_MID;
+            return C_ATT;
+        }
+        // Generic fallback based on position name
+        String name = pos.getName().toLowerCase();
+        if (name.contains("goalkeeper")) return C_GK;
+        if (name.contains("back"))       return C_DEF;
+        if (name.contains("wing"))       return C_ATT;
+        return C_MID;
     }
 }
