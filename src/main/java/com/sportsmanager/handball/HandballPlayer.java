@@ -107,6 +107,7 @@ public class HandballPlayer extends Player {
 
     public int getCurrentStamina()       { return (int) Math.round(currentStamina); }
     public void drainStamina(double v)   { currentStamina = Math.max(0.0, currentStamina - v); }
+    public void recoverStamina(double v) { currentStamina = Math.min(100.0, currentStamina + v); }
     public void resetStamina()           { currentStamina = 100.0; }
 
     // ── Form ──────────────────────────────────────────────────────────────────

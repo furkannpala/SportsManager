@@ -284,7 +284,7 @@ public class HandballMatchEngine implements MatchEngine {
 
     private void drainStamina(List<HandballPlayer> players) {
         for (HandballPlayer p : players) {
-            double base     = p.getPosition().isGoalkeeper() ? 0.45 : 1.10;
+            double base     = p.getPosition().isGoalkeeper() ? 0.20 : 0.50;
             double physFact = Math.max(20, p.getPhysical()) / 60.0;
             p.drainStamina(base / physFact);
         }
@@ -298,7 +298,7 @@ public class HandballMatchEngine implements MatchEngine {
 
     private void resetSquadStamina(Team team) {
         for (Player p : team.getSquad()) {
-            if (p instanceof HandballPlayer hp) hp.resetStamina();
+            if (p instanceof HandballPlayer hp) hp.recoverStamina(25.0);
         }
     }
 

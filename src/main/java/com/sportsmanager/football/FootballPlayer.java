@@ -140,6 +140,9 @@ public class FootballPlayer extends Player {
         currentStamina = Math.max(0.0, currentStamina - amount);
     }
 
+    /** Recovers stamina up to a maximum of 100.0. */
+    public void recoverStamina(double amount) { currentStamina = Math.min(100.0, currentStamina + amount); }
+
     /** Restores stamina to full (100). Called at the start of each match. */
     public void resetStamina() { currentStamina = 100.0; }
 

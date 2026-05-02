@@ -69,7 +69,7 @@ public class FootballMatchEngine implements MatchEngine {
 
     private void resetSquadStamina(Team team) {
         for (Player p : team.getSquad()) {
-            if (p instanceof FootballPlayer fp) fp.resetStamina();
+            if (p instanceof FootballPlayer fp) fp.recoverStamina(25.0);
         }
     }
 
@@ -387,19 +387,19 @@ public class FootballMatchEngine implements MatchEngine {
     /** Base stamina drain per minute (at physical = 60). */
     private double baseDrainRate(FootballPosition pos) {
         return switch (pos) {
-            case GOALKEEPER           -> 0.50;
-            case CENTRE_BACK          -> 0.68;
+            case GOALKEEPER           -> 0.25;
+            case CENTRE_BACK          -> 0.34;
             case LEFT_BACK,
-                 RIGHT_BACK           -> 0.76;
-            case DEFENSIVE_MIDFIELDER -> 0.82;
-            case CENTRAL_MIDFIELDER   -> 0.88;
-            case ATTACKING_MIDFIELDER -> 0.94;
+                 RIGHT_BACK           -> 0.38;
+            case DEFENSIVE_MIDFIELDER -> 0.41;
+            case CENTRAL_MIDFIELDER   -> 0.44;
+            case ATTACKING_MIDFIELDER -> 0.47;
             case LEFT_MIDFIELDER,
-                 RIGHT_MIDFIELDER     -> 0.92;
+                 RIGHT_MIDFIELDER     -> 0.46;
             case LEFT_WINGER,
-                 RIGHT_WINGER         -> 1.00;
-            case STRIKER              -> 0.94;
-            case CENTRE_FORWARD       -> 0.90;
+                 RIGHT_WINGER         -> 0.50;
+            case STRIKER              -> 0.47;
+            case CENTRE_FORWARD       -> 0.45;
         };
     }
 
