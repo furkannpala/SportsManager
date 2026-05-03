@@ -27,6 +27,10 @@ public class ViewManager {
         this.contentArea = contentArea;
     }
 
+    public StackPane getContentArea() {
+        return contentArea;
+    }
+
     public void setSidebar(Sidebar sidebar) {
         this.sidebar = sidebar;
     }

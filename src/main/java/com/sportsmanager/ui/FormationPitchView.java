@@ -3,14 +3,17 @@ package com.sportsmanager.ui;
 import com.sportsmanager.core.Formation;
 import com.sportsmanager.core.Player;
 import com.sportsmanager.core.Position;
-import com.sportsmanager.football.FootballPlayer;
 import com.sportsmanager.football.FootballPosition;
+import com.sportsmanager.game.GameManager;
+import com.sportsmanager.handball.HandballSport;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Arc;
+import javafx.scene.shape.ArcType;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Ellipse;
 import javafx.scene.shape.Line;
@@ -69,9 +72,15 @@ public class FormationPitchView extends Pane {
             drawFormationWithPlayers(formation, players, selectedOut, onPlayerClick, nodeDecorator);
     }
 
-    // ── Pitch background ────────────────────────────────────────────────────────
+    // ── Pitch / Court background ────────────────────────────────────────────────
 
     private void drawPitch() {
+        boolean handball = GameManager.getInstance().getState().getCurrentSport() instanceof HandballSport;
+        if (handball) drawHandballCourt();
+        else          drawFootballPitch();
+    }
+
+    private void drawFootballPitch() {
         int stripes = 8;
         double sh = H / stripes;
         for (int i = 0; i < stripes; i++) {
@@ -84,6 +93,79 @@ public class FormationPitchView extends Pane {
         addShape(ellipse(W / 2, H / 2, 34, 22));
         addShape(rect(W / 2 - 54, 8, 108, 48));
         addShape(rect(W / 2 - 54, H - 56, 108, 48));
+    }
+
+    private void drawHandballCourt() {
+        // Parquet-style indoor floor stripes
+        int stripes = 10;
+        double sh = H / stripes;
+        for (int i = 0; i < stripes; i++) {
+            Rectangle s = new Rectangle(0, i * sh, W, sh);
+            s.setFill(Color.web(i % 2 == 0 ? "#7a4f1e" : "#6b4419"));
+            getChildren().add(s);
+        }
+
+        // Outer boundary
+        addShape(rect(10, 8, W - 20, H - 16));
+
+        // Center line & center circle
+        addShape(line(10, H / 2, W - 10, H / 2));
+        addShape(ellipse(W / 2, H / 2, 18, 12));
+
+        double cx  = W / 2.0;
+        double gW  = 30.0;  // goal width (~3 m)
+        double gH  = 7.0;   // goal depth (visual)
+
+        // Goals (top & bottom)
+        Rectangle topGoal = new Rectangle(cx - gW / 2, 8, gW, gH);
+        topGoal.setFill(Color.web("#ffffff25"));
+        topGoal.setStroke(Color.web("#ffffffc0"));
+        topGoal.setStrokeWidth(2.0);
+        getChildren().add(topGoal);
+
+        Rectangle bottomGoal = new Rectangle(cx - gW / 2, H - 8 - gH, gW, gH);
+        bottomGoal.setFill(Color.web("#ffffff25"));
+        bottomGoal.setStroke(Color.web("#ffffffc0"));
+        bottomGoal.setStrokeWidth(2.0);
+        getChildren().add(bottomGoal);
+
+        // 6 m goalkeeper area arcs (D-shape)
+        Arc top6m = new Arc(cx, 8, 64, 54, 180, 180);
+        top6m.setType(ArcType.OPEN);
+        top6m.setFill(Color.TRANSPARENT);
+        top6m.setStroke(Color.web("#ffffff80"));
+        top6m.setStrokeWidth(1.4);
+        getChildren().add(top6m);
+
+        Arc bottom6m = new Arc(cx, H - 8, 64, 54, 0, 180);
+        bottom6m.setType(ArcType.OPEN);
+        bottom6m.setFill(Color.TRANSPARENT);
+        bottom6m.setStroke(Color.web("#ffffff80"));
+        bottom6m.setStrokeWidth(1.4);
+        getChildren().add(bottom6m);
+
+        // 9 m free-throw arcs (dashed)
+        Arc top9m = new Arc(cx, 8, 86, 76, 180, 180);
+        top9m.setType(ArcType.OPEN);
+        top9m.setFill(Color.TRANSPARENT);
+        top9m.setStroke(Color.web("#ffffff70"));
+        top9m.setStrokeWidth(1.2);
+        top9m.getStrokeDashArray().addAll(7.0, 5.0);
+        getChildren().add(top9m);
+
+        Arc bottom9m = new Arc(cx, H - 8, 86, 76, 0, 180);
+        bottom9m.setType(ArcType.OPEN);
+        bottom9m.setFill(Color.TRANSPARENT);
+        bottom9m.setStroke(Color.web("#ffffff70"));
+        bottom9m.setStrokeWidth(1.2);
+        bottom9m.getStrokeDashArray().addAll(7.0, 5.0);
+        getChildren().add(bottom9m);
+
+        // 7 m penalty marks
+        double penTop    = 8  + 60;
+        double penBottom = H - 8 - 60;
+        addShape(line(cx - 7, penTop,    cx + 7, penTop));
+        addShape(line(cx - 7, penBottom, cx + 7, penBottom));
     }
 
     private Rectangle rect(double x, double y, double w, double h) {
@@ -331,10 +413,13 @@ public class FormationPitchView extends Pane {
                 case CENTRE_FORWARD       -> "CF";
             };
         }
-        // Generic: initials of each word, capped at 3 chars
+        // Generic: initials of each word (multi-word) or first 3 chars (single word)
         String name = pos.getName();
         if (name.toLowerCase().startsWith("goalkeeper")) return "GK";
         String[] words = name.split("\\s+");
+        if (words.length == 1)
+            return name.length() >= 3 ? name.substring(0, 3).toUpperCase(java.util.Locale.ROOT)
+                                       : name.toUpperCase(java.util.Locale.ROOT);
         StringBuilder sb = new StringBuilder();
         for (String w : words) if (!w.isEmpty()) sb.append(Character.toUpperCase(w.charAt(0)));
         String result = sb.toString();

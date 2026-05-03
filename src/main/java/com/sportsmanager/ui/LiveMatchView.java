@@ -5,6 +5,8 @@ import com.sportsmanager.football.FootballEventType;
 import com.sportsmanager.football.FootballMatchEvent;
 import com.sportsmanager.football.FootballPlayer;
 import com.sportsmanager.football.FootballPosition;
+import com.sportsmanager.handball.HandballPlayer;
+import com.sportsmanager.handball.HandballPosition;
 import com.sportsmanager.game.GameManager;
 import com.sportsmanager.game.SeasonState;
 import com.sportsmanager.league.FootballLeague;
@@ -13,7 +15,6 @@ import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
-import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
@@ -381,7 +382,7 @@ public class LiveMatchView extends StackPane {
         refreshBench[0] = () -> {
             benchPanel.getChildren().clear();
             List<Player> candidates = selOut[0] != null
-                    ? filterBenchByZone(bench, footballPosition(selOut[0]))
+                    ? filterBenchByZone(bench, getPosition(selOut[0]))
                     : bench;
             if (candidates.isEmpty()) {
                 Label none = new Label("No compatible bench players available");
@@ -497,33 +498,43 @@ public class LiveMatchView extends StackPane {
         return "-fx-background-color: #1a1a2e; -fx-background-radius: 6; -fx-cursor: hand;";
     }
 
-    private List<Player> filterBenchByZone(List<Player> bench, FootballPosition outPos) {
+    private List<Player> filterBenchByZone(List<Player> bench, Position outPos) {
         if (outPos == null) return bench;
         List<Player> same = bench.stream()
-                .filter(p -> isSameZone(footballPosition(p), outPos))
+                .filter(p -> isSameZone(getPosition(p), outPos))
                 .toList();
         return same.isEmpty() ? bench : same;
     }
 
     // ── Position helpers ──────────────────────────────────────────────────────────
 
-    private FootballPosition footballPosition(Player p) {
+    private Position getPosition(Player p) {
         if (p instanceof FootballPlayer fp) return fp.getPosition();
+        if (p instanceof HandballPlayer hp) return hp.getPosition();
         return null;
     }
 
     private String positionName(Player p) {
-        FootballPosition pos = footballPosition(p);
-        return pos != null ? pos.getName() : "—";
+        if (p instanceof FootballPlayer fp) return fp.getPosition().getName();
+        if (p instanceof HandballPlayer hp) return hp.getPosition().getName();
+        return "—";
     }
 
-    private boolean isSameZone(FootballPosition a, FootballPosition b) {
+    private boolean isSameZone(Position a, Position b) {
         if (a == null || b == null) return true;
-        if (a == FootballPosition.GOALKEEPER || b == FootballPosition.GOALKEEPER)
-            return a == b;
-        return a.isDefensive() == b.isDefensive()
-                && a.isMidfield()  == b.isMidfield()
-                && a.isAttacking() == b.isAttacking();
+        if (a instanceof FootballPosition fa && b instanceof FootballPosition fb) {
+            if (fa == FootballPosition.GOALKEEPER || fb == FootballPosition.GOALKEEPER) return fa == fb;
+            return fa.isDefensive() == fb.isDefensive()
+                    && fa.isMidfield()  == fb.isMidfield()
+                    && fa.isAttacking() == fb.isAttacking();
+        }
+        if (a instanceof HandballPosition ha && b instanceof HandballPosition hb) {
+            if (ha.isGoalkeeper() || hb.isGoalkeeper()) return ha == hb;
+            return ha.isWing()  == hb.isWing()
+                    && ha.isBack()  == hb.isBack()
+                    && ha.isPivot() == hb.isPivot();
+        }
+        return true;
     }
 
     // ── Substitution toast ────────────────────────────────────────────────────────

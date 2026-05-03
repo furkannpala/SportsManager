@@ -60,6 +60,8 @@ public class HandballSport implements Sport {
     @Override public int getMatchPeriodCount()            { return PERIOD_COUNT; }
     @Override public int getMatchPeriodDurationMinutes()  { return PERIOD_DURATION_MINUTES; }
     @Override public int getMaxSubstitutions()            { return MAX_SUBSTITUTIONS; }
+    @Override public int getStartingLineupSize()          { return MAX_PLAYERS_ON_COURT; }
+    @Override public int getSquadSize()                   { return 16; }
 
     @Override
     public List<String> getAttributesForCategory(TrainingCategory focus) {

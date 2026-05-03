@@ -5,6 +5,8 @@ import com.sportsmanager.football.FootballEventType;
 import com.sportsmanager.football.FootballMatchEvent;
 import com.sportsmanager.football.FootballPlayer;
 import com.sportsmanager.football.FootballPosition;
+import com.sportsmanager.handball.HandballPlayer;
+import com.sportsmanager.handball.HandballPosition;
 import com.sportsmanager.game.GameManager;
 import com.sportsmanager.game.SeasonState;
 import com.sportsmanager.league.Match;
@@ -146,7 +148,7 @@ public class SubstitutionView extends HBox {
         benchPanel.getChildren().clear();
 
         List<Player> candidates = selectedOut != null
-                ? filterByZone(bench, footballPos(selectedOut))
+                ? filterByZone(bench, selectedOut.getPosition())
                 : bench;
 
         if (candidates.isEmpty()) {
@@ -244,29 +246,35 @@ public class SubstitutionView extends HBox {
 
     // ── Helpers ──────────────────────────────────────────────────────────────────
 
-    private FootballPosition footballPos(Player p) {
-        return p instanceof FootballPlayer fp ? fp.getPosition() : null;
-    }
-
     private String posName(Player p) {
-        FootballPosition pos = footballPos(p);
-        return pos != null ? pos.getName() : "—";
+        if (p instanceof FootballPlayer fp) return fp.getPosition().getName();
+        if (p instanceof HandballPlayer hp) return hp.getPosition().getName();
+        return "—";
     }
 
-    private List<Player> filterByZone(List<Player> players, FootballPosition outPos) {
+    private List<Player> filterByZone(List<Player> players, Position outPos) {
         if (outPos == null) return players;
         List<Player> same = players.stream()
-                .filter(p -> isSameZone(footballPos(p), outPos))
+                .filter(p -> isSameZone(p.getPosition(), outPos))
                 .toList();
         return same.isEmpty() ? players : same;
     }
 
-    private boolean isSameZone(FootballPosition a, FootballPosition b) {
+    private boolean isSameZone(Position a, Position b) {
         if (a == null || b == null) return true;
-        if (a == FootballPosition.GOALKEEPER || b == FootballPosition.GOALKEEPER) return a == b;
-        return a.isDefensive() == b.isDefensive()
-                && a.isMidfield()  == b.isMidfield()
-                && a.isAttacking() == b.isAttacking();
+        if (a instanceof FootballPosition fa && b instanceof FootballPosition fb) {
+            if (fa == FootballPosition.GOALKEEPER || fb == FootballPosition.GOALKEEPER) return fa == fb;
+            return fa.isDefensive() == fb.isDefensive()
+                    && fa.isMidfield()  == fb.isMidfield()
+                    && fa.isAttacking() == fb.isAttacking();
+        }
+        if (a instanceof HandballPosition ha && b instanceof HandballPosition hb) {
+            if (ha.isGoalkeeper() || hb.isGoalkeeper()) return ha == hb;
+            return ha.isWing()  == hb.isWing()
+                    && ha.isBack()  == hb.isBack()
+                    && ha.isPivot() == hb.isPivot();
+        }
+        return true;
     }
 
     private String initials(String fullName) {

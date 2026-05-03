@@ -3,6 +3,8 @@ package com.sportsmanager.ui;
 import com.sportsmanager.core.*;
 import com.sportsmanager.football.FootballPlayer;
 import com.sportsmanager.football.FootballPosition;
+import com.sportsmanager.handball.HandballPlayer;
+import com.sportsmanager.handball.HandballPosition;
 import com.sportsmanager.game.GameManager;
 import com.sportsmanager.game.SeasonState;
 import com.sportsmanager.league.Match;
@@ -10,7 +12,6 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.control.*;
 import javafx.scene.input.ClipboardContent;
-import javafx.scene.input.DragEvent;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
 import javafx.scene.layout.*;
@@ -27,6 +28,8 @@ public class PreMatchSetupView extends StackPane {
     private final Match match;
     private final Team userTeam;
 
+    private final int lineupSize;
+
     private Player selectedPlayer = null;
     private HBox selectedRow = null;
     private final List<HBox> playerRows = new ArrayList<>();
@@ -39,6 +42,7 @@ public class PreMatchSetupView extends StackPane {
         this.state = GameManager.getInstance().getState();
         this.match = match;
         this.userTeam = state.getUserTeam();
+        this.lineupSize = state.getCurrentSport().getStartingLineupSize();
 
         VBox main = new VBox(16);
         main.setPadding(new Insets(20));
@@ -178,7 +182,7 @@ public class PreMatchSetupView extends StackPane {
     // ── Pitch refresh ─────────────────────────────────────────────────
     private void refreshPitchView() {
         if (pitchView == null) return;
-        List<Player> starters = userTeam.getSquad().subList(0, Math.min(11, userTeam.getSquad().size()));
+        List<Player> starters = userTeam.getSquad().subList(0, Math.min(lineupSize, userTeam.getSquad().size()));
         pitchView.redrawWithPlayers(userTeam.getFormation(), starters, null, null);
     }
 
@@ -194,7 +198,7 @@ public class PreMatchSetupView extends StackPane {
         lineupCard.getChildren().add(lineupTitle);
 
         List<Player> squad = userTeam.getSquad();
-        for (int i = 0; i < Math.min(11, squad.size()); i++) {
+        for (int i = 0; i < Math.min(lineupSize, squad.size()); i++) {
             Player p = squad.get(i);
             HBox row = createPlayerRow(p, true);
             playerRows.add(row);
@@ -206,7 +210,7 @@ public class PreMatchSetupView extends StackPane {
         benchTitle.setPadding(new Insets(8, 0, 0, 0));
         lineupCard.getChildren().add(benchTitle);
 
-        for (int i = 11; i < squad.size(); i++) {
+        for (int i = lineupSize; i < squad.size(); i++) {
             Player p = squad.get(i);
             HBox row = createPlayerRow(p, false);
             playerRows.add(row);
@@ -228,8 +232,8 @@ public class PreMatchSetupView extends StackPane {
         } else {
             int idxA = playerRows.indexOf(selectedRow);
             int idxB = playerRows.indexOf(clickedRow);
-            boolean aIsStarter = idxA < 11;
-            boolean bIsStarter = idxB < 11;
+            boolean aIsStarter = idxA < lineupSize;
+            boolean bIsStarter = idxB < lineupSize;
 
             if (aIsStarter == bIsStarter) {
                 highlightRow(selectedRow, false);
@@ -269,7 +273,7 @@ public class PreMatchSetupView extends StackPane {
     private void handleStartMatch() {
         List<Player> squad = userTeam.getSquad();
         List<String> unavailable = new ArrayList<>();
-        for (int i = 0; i < Math.min(11, squad.size()); i++) {
+        for (int i = 0; i < Math.min(lineupSize, squad.size()); i++) {
             Player p = squad.get(i);
             if (!p.isAvailable()) {
                 String suffix = p.isSuspended()
@@ -279,7 +283,7 @@ public class PreMatchSetupView extends StackPane {
             }
         }
 
-        boolean hasAvailableBench = squad.subList(Math.min(11, squad.size()), squad.size())
+        boolean hasAvailableBench = squad.subList(Math.min(lineupSize, squad.size()), squad.size())
                 .stream().anyMatch(Player::isAvailable);
 
         if (!unavailable.isEmpty() && hasAvailableBench) {
@@ -458,38 +462,54 @@ public class PreMatchSetupView extends StackPane {
     }
 
     private Label createPositionBadge(Player p) {
-        String posName = "?";
-        String badgeClass = "badge-def";
+        String posName;
+        String badgeClass;
 
         if (p instanceof FootballPlayer fp) {
             FootballPosition pos = fp.getPosition();
-            posName = getShortPosition(pos);
-            if (pos == FootballPosition.GOALKEEPER) badgeClass = "badge-gk";
-            else if (pos.isDefensive()) badgeClass = "badge-def";
-            else if (pos.isMidfield()) badgeClass = "badge-mid";
-            else badgeClass = "badge-fwd";
+            posName = switch (pos) {
+                case GOALKEEPER           -> "GK";
+                case CENTRE_BACK          -> "CB";
+                case LEFT_BACK            -> "LB";
+                case RIGHT_BACK           -> "RB";
+                case DEFENSIVE_MIDFIELDER -> "CDM";
+                case CENTRAL_MIDFIELDER   -> "CM";
+                case ATTACKING_MIDFIELDER -> "CAM";
+                case LEFT_MIDFIELDER      -> "LM";
+                case RIGHT_MIDFIELDER     -> "RM";
+                case LEFT_WINGER          -> "LW";
+                case RIGHT_WINGER         -> "RW";
+                case STRIKER              -> "ST";
+                case CENTRE_FORWARD       -> "CF";
+            };
+            if (pos == FootballPosition.GOALKEEPER)  badgeClass = "badge-gk";
+            else if (pos.isDefensive())              badgeClass = "badge-def";
+            else if (pos.isMidfield())               badgeClass = "badge-mid";
+            else                                     badgeClass = "badge-fwd";
+        } else if (p instanceof HandballPlayer hp) {
+            HandballPosition pos = hp.getPosition();
+            posName = switch (pos) {
+                case GOALKEEPER  -> "GK";
+                case LEFT_WING   -> "LW";
+                case LEFT_BACK   -> "LB";
+                case CENTER_BACK -> "CB";
+                case RIGHT_BACK  -> "RB";
+                case RIGHT_WING  -> "RW";
+                case PIVOT       -> "PIV";
+            };
+            badgeClass = switch (pos) {
+                case GOALKEEPER              -> "badge-gk";
+                case LEFT_BACK, RIGHT_BACK,
+                     CENTER_BACK             -> "badge-mid";
+                case LEFT_WING, RIGHT_WING   -> "badge-fwd";
+                case PIVOT                   -> "badge-def";
+            };
+        } else {
+            posName = "?"; badgeClass = "badge-def";
         }
 
         Label badge = new Label(posName);
         badge.getStyleClass().addAll("badge", badgeClass);
         return badge;
-    }
-
-    private String getShortPosition(FootballPosition pos) {
-        return switch (pos) {
-            case GOALKEEPER -> "GK";
-            case CENTRE_BACK -> "CB";
-            case LEFT_BACK -> "LB";
-            case RIGHT_BACK -> "RB";
-            case DEFENSIVE_MIDFIELDER -> "CDM";
-            case CENTRAL_MIDFIELDER -> "CM";
-            case ATTACKING_MIDFIELDER -> "CAM";
-            case LEFT_MIDFIELDER -> "LM";
-            case RIGHT_MIDFIELDER -> "RM";
-            case LEFT_WINGER -> "LW";
-            case RIGHT_WINGER -> "RW";
-            case STRIKER -> "ST";
-            case CENTRE_FORWARD -> "CF";
-        };
     }
 }

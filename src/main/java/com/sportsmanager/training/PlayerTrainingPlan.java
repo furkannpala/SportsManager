@@ -1,6 +1,6 @@
 package com.sportsmanager.training;
 
-import com.sportsmanager.football.FootballPlayer;
+import com.sportsmanager.core.Player;
 import com.sportsmanager.football.PositionalTrainingOption;
 
 /**
@@ -9,29 +9,29 @@ import com.sportsmanager.football.PositionalTrainingOption;
  */
 public final class PlayerTrainingPlan {
 
-    private final FootballPlayer player;
+    private final Player player;
     private final PositionalTrainingOption option;
     private int weeksRemaining;
     private final int totalWeeks;
 
     /** Creates a new plan; duration is rolled dynamically based on form and age. */
-    public PlayerTrainingPlan(FootballPlayer player, PositionalTrainingOption option) {
+    public PlayerTrainingPlan(Player player, PositionalTrainingOption option) {
         this.player         = player;
         this.option         = option;
-        
+
         if (player.getAge() >= 30) {
             this.totalWeeks = Integer.MAX_VALUE;
         } else {
             double formFactor = com.sportsmanager.training.TrainingEngine.formFactor(player.getForm());
-            double ageFactor = com.sportsmanager.training.TrainingEngine.ageFactor(player.getAge());
-            int baseWeeks = option.generateDuration();
-            this.totalWeeks = (int) Math.max(1, Math.round(baseWeeks * (1.0 / formFactor) * (1.0 / ageFactor)));
+            double ageFactor  = com.sportsmanager.training.TrainingEngine.ageFactor(player.getAge());
+            int baseWeeks     = option.generateDuration();
+            this.totalWeeks   = (int) Math.max(1, Math.round(baseWeeks * (1.0 / formFactor) * (1.0 / ageFactor)));
         }
         this.weeksRemaining = this.totalWeeks;
     }
 
     /** For save/load reconstruction. */
-    public PlayerTrainingPlan(FootballPlayer player, PositionalTrainingOption option,
+    public PlayerTrainingPlan(Player player, PositionalTrainingOption option,
                                int weeksRemaining, int totalWeeks) {
         this.player         = player;
         this.option         = option;
@@ -39,7 +39,7 @@ public final class PlayerTrainingPlan {
         this.totalWeeks     = totalWeeks;
     }
 
-    public FootballPlayer           getPlayer()          { return player; }
+    public Player                   getPlayer()          { return player; }
     public PositionalTrainingOption getOption()          { return option; }
     public int                      getWeeksRemaining()  { return weeksRemaining; }
     public int                      getTotalWeeks()      { return totalWeeks; }

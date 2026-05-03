@@ -21,7 +21,7 @@ import java.util.Random;
  */
 public class TeamGenerator {
 
-    private static final int SQUAD_SIZE        = 23;
+    private final int SQUAD_SIZE;
     private static final int ATTRIBUTE_STD_DEV = 8;
 
     private final Sport sport;
@@ -35,6 +35,7 @@ public class TeamGenerator {
         this.playerFactory  = playerFactory;
         this.nameGenerator  = nameGenerator;
         this.random         = new Random();
+        this.SQUAD_SIZE     = sport.getSquadSize();
     }
 
     // ── League generation ─────────────────────────────────────────────────────

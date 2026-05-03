@@ -35,6 +35,9 @@ public interface Sport {
 
     int getMaxSubstitutions();
 
+    default int getStartingLineupSize() { return 11; }
+
+    default int getSquadSize() { return 23; }
 
     default List<String> getAttributesForCategory(TrainingCategory focus) {
         return new ArrayList<>();

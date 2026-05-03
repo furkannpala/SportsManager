@@ -1,6 +1,8 @@
 package com.sportsmanager.ui;
 
 import com.sportsmanager.core.Player;
+import com.sportsmanager.core.Position;
+import com.sportsmanager.core.Sport;
 import com.sportsmanager.core.Team;
 import com.sportsmanager.football.FootballPlayer;
 import com.sportsmanager.football.FootballPosition;
@@ -8,6 +10,9 @@ import com.sportsmanager.football.FootballTrainingOptions;
 import com.sportsmanager.football.PositionalTrainingOption;
 import com.sportsmanager.game.GameManager;
 import com.sportsmanager.game.SeasonState;
+import com.sportsmanager.handball.HandballPlayer;
+import com.sportsmanager.handball.HandballPosition;
+import com.sportsmanager.handball.HandballTrainingOptions;
 import com.sportsmanager.training.PlayerTrainingPlan;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -18,31 +23,27 @@ import javafx.scene.shape.Rectangle;
 
 import java.util.List;
 
-/**
- * Training Centre — lets the user assign position-specific training plans
- * to players in the squad, showing form and development progress.
- */
 public class TrainingView extends HBox {
 
-    // ── Form colours (5–10 scale) ─────────────────────────────────────────────────
-    private static final String C_FORM_VG   = "#145214"; // ≥ 8.5 dark green
-    private static final String C_FORM_G    = "#27ae60"; // ≥ 7.5 green
-    private static final String C_FORM_MID  = "#b8860b"; // ≥ 6.5 yellow
-    private static final String C_FORM_BAD  = "#c0392b"; // ≥ 5.5 red
-    private static final String C_FORM_VB   = "#6b0000"; // < 5.5 dark red
+    private static final String C_FORM_VG  = "#145214";
+    private static final String C_FORM_G   = "#27ae60";
+    private static final String C_FORM_MID = "#b8860b";
+    private static final String C_FORM_BAD = "#c0392b";
+    private static final String C_FORM_VB  = "#6b0000";
 
     private final SeasonState state;
     private final Team        userTeam;
+    private final Sport       sport;
 
-    private FootballPlayer    selectedPlayer = null;
+    private Player selectedPlayer = null;
 
-    // UI refs
     private VBox playerListBox;
     private VBox rightPanel;
 
     public TrainingView() {
         this.state    = GameManager.getInstance().getState();
         this.userTeam = state.getUserTeam();
+        this.sport    = state.getCurrentSport();
         setSpacing(0);
         setPrefWidth(Double.MAX_VALUE);
         build();
@@ -53,7 +54,6 @@ public class TrainingView extends HBox {
     private void build() {
         getChildren().clear();
 
-        // ── Left: squad list ──────────────────────────────────────────────────────
         VBox leftWrapper = new VBox(0);
         leftWrapper.setPrefWidth(420);
         leftWrapper.setMinWidth(380);
@@ -67,7 +67,8 @@ public class TrainingView extends HBox {
         squadLbl.setStyle("-fx-font-size: 14px; -fx-font-weight: bold; -fx-text-fill: #e0e0ff;");
         Label weekLbl = new Label("Week " + state.getCurrentWeek());
         weekLbl.setStyle("-fx-font-size: 12px; -fx-text-fill: #666688;");
-        Region sp = new Region(); HBox.setHgrow(sp, Priority.ALWAYS);
+        Region sp = new Region();
+        HBox.setHgrow(sp, Priority.ALWAYS);
         leftHeader.getChildren().addAll(squadLbl, sp, weekLbl);
 
         playerListBox = new VBox(0);
@@ -77,10 +78,9 @@ public class TrainingView extends HBox {
         VBox.setVgrow(listScroll, Priority.ALWAYS);
 
         leftWrapper.getChildren().addAll(leftHeader, listScroll);
-        VBox.setVgrow(listScroll, Priority.ALWAYS);
 
-        // ── Right: detail + training options ─────────────────────────────────────
         rightPanel = new VBox(0);
+        rightPanel.setMinWidth(420);
         HBox.setHgrow(rightPanel, Priority.ALWAYS);
         rightPanel.setStyle("-fx-background-color: #12122a;");
 
@@ -96,14 +96,12 @@ public class TrainingView extends HBox {
     private void refreshPlayerList() {
         playerListBox.getChildren().clear();
         for (Player p : userTeam.getSquad()) {
-            if (p instanceof FootballPlayer fp) {
-                playerListBox.getChildren().add(buildPlayerRow(fp));
-            }
+            playerListBox.getChildren().add(buildPlayerRow(p));
         }
     }
 
-    private HBox buildPlayerRow(FootballPlayer fp) {
-        boolean selected = fp == selectedPlayer;
+    private HBox buildPlayerRow(Player p) {
+        boolean selected = p == selectedPlayer;
         String bg = selected ? "#222250" : "#16213e";
 
         HBox row = new HBox(8);
@@ -111,93 +109,81 @@ public class TrainingView extends HBox {
         row.setAlignment(Pos.CENTER_LEFT);
         row.setStyle("-fx-background-color: " + bg + "; -fx-cursor: hand;");
 
-        // Position badge (CSS-based, consistent with rest of app)
-        Label posBadge = positionBadge(fp.getPosition());
+        Label posBadge = positionBadge(p.getPosition());
 
-        // Name
-        Label nameLbl = new Label(fp.getName());
+        Label nameLbl = new Label(p.getName());
         nameLbl.setStyle("-fx-text-fill: " + (selected ? "#ffffff" : "#ccccee")
                 + "; -fx-font-size: 12px; -fx-font-weight: " + (selected ? "bold" : "normal") + ";");
         nameLbl.setPrefWidth(140);
         nameLbl.setMinWidth(100);
 
-        // OVR
-        int ovr = fp.getOverallRating();
+        int ovr = p.getOverallRating();
         Label ovrLbl = new Label(String.valueOf(ovr));
-        ovrLbl.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: "
-                + ovrColor(ovr) + ";");
+        ovrLbl.setStyle("-fx-font-size: 11px; -fx-font-weight: bold; -fx-text-fill: " + ovrColor(ovr) + ";");
         ovrLbl.setMinWidth(28);
 
-        // Form badge
-        Label formBadge = formBadge(fp);
+        Label fBadge = formBadge(p);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        // Training status
-        PlayerTrainingPlan plan = state.getTrainingPlan(fp);
+        PlayerTrainingPlan plan = state.getTrainingPlan(p);
         Label statusLbl;
-        if (fp.isInjured()) {
+        if (p.isInjured()) {
             statusLbl = new Label("Injured");
             statusLbl.setStyle("-fx-text-fill: #ff5252; -fx-font-size: 10px; -fx-font-weight: bold;");
         } else if (plan != null) {
-            if (fp.getAge() >= 30) {
-                statusLbl = new Label("Maintenance");
-            } else {
-                statusLbl = new Label(plan.getWeeksRemaining() + "w left");
-            }
+            statusLbl = p.getAge() >= 30
+                    ? new Label("Maintenance")
+                    : new Label(plan.getWeeksRemaining() + "w left");
             statusLbl.setStyle("-fx-text-fill: #00d2ff; -fx-font-size: 10px;");
         } else {
             statusLbl = new Label("Free");
             statusLbl.setStyle("-fx-text-fill: #555577; -fx-font-size: 10px;");
         }
 
-        row.getChildren().addAll(posBadge, nameLbl, ovrLbl, formBadge, spacer, statusLbl);
+        row.getChildren().addAll(posBadge, nameLbl, ovrLbl, fBadge, spacer, statusLbl);
 
-        row.setOnMouseClicked(e -> selectPlayer(fp));
-        row.setOnMouseEntered(e -> {
-            if (fp != selectedPlayer)
-                row.setStyle("-fx-background-color: #1e1e40; -fx-cursor: hand;");
-        });
-        row.setOnMouseExited(e -> {
-            if (fp != selectedPlayer)
-                row.setStyle("-fx-background-color: " + bg + "; -fx-cursor: hand;");
-        });
+        row.setOnMouseClicked(e -> selectPlayer(p));
+        row.setOnMouseEntered(e -> { if (p != selectedPlayer) row.setStyle("-fx-background-color: #1e1e40; -fx-cursor: hand;"); });
+        row.setOnMouseExited(e  -> { if (p != selectedPlayer) row.setStyle("-fx-background-color: " + bg + "; -fx-cursor: hand;"); });
         return row;
     }
 
-    private void selectPlayer(FootballPlayer fp) {
-        selectedPlayer = fp;
+    private void selectPlayer(Player p) {
+        selectedPlayer = p;
         refreshPlayerList();
-        showPlayerDetail(fp);
+        showPlayerDetail(p);
     }
 
-    // ── Right panel: placeholder ──────────────────────────────────────────────────
+    // ── Placeholder ───────────────────────────────────────────────────────────────
 
     private void showPlaceholder() {
         rightPanel.getChildren().clear();
-        VBox center = new VBox(12);
+        VBox center = new VBox(10);
         center.setAlignment(Pos.CENTER);
         VBox.setVgrow(center, Priority.ALWAYS);
-        Label icon  = new Label("⚽");
+
+        Label icon  = new Label(sport instanceof com.sportsmanager.handball.HandballSport ? "🤾" : "⚽");
         icon.setStyle("-fx-font-size: 48px;");
-        Label hint = new Label("Select a player from the list to assign a training plan.");
-        hint.setStyle("-fx-text-fill: #555577; -fx-font-size: 13px;");
-        hint.setWrapText(true);
-        hint.setAlignment(Pos.CENTER);
-        center.getChildren().addAll(icon, hint);
+
+        Label line1 = new Label("Select a player from the list");
+        line1.setStyle("-fx-text-fill: #888899; -fx-font-size: 14px; -fx-font-weight: bold;");
+
+        Label line2 = new Label("to assign a training plan");
+        line2.setStyle("-fx-text-fill: #555577; -fx-font-size: 12px;");
+
+        center.getChildren().addAll(icon, line1, line2);
         rightPanel.getChildren().add(center);
     }
 
-    // ── Right panel: player detail + training options ─────────────────────────────
+    // ── Player detail ─────────────────────────────────────────────────────────────
 
-    private void showPlayerDetail(FootballPlayer fp) {
+    private void showPlayerDetail(Player p) {
         rightPanel.getChildren().clear();
 
-        // ── Player info card ──────────────────────────────────────────────────────
-        VBox infoCard = buildInfoCard(fp);
+        VBox infoCard = buildInfoCard(p);
 
-        // ── Training options title ────────────────────────────────────────────────
         Label optTitle = new Label("Training Options");
         optTitle.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #e0e0ff;"
                 + " -fx-padding: 14 16 8 16;");
@@ -205,57 +191,54 @@ public class TrainingView extends HBox {
         VBox optionsList = new VBox(8);
         optionsList.setPadding(new Insets(0, 16, 16, 16));
 
-        List<PositionalTrainingOption> options = FootballTrainingOptions.getFor(fp.getPosition());
-        PlayerTrainingPlan activePlan = state.getTrainingPlan(fp);
+        List<PositionalTrainingOption> options = trainingOptionsFor(p);
+        PlayerTrainingPlan activePlan = state.getTrainingPlan(p);
 
         for (PositionalTrainingOption opt : options) {
             boolean isActive = activePlan != null
                     && activePlan.getOption().getId().equals(opt.getId());
-            optionsList.getChildren().add(buildOptionCard(fp, opt, activePlan, isActive));
+            optionsList.getChildren().add(buildOptionCard(p, opt, activePlan, isActive));
         }
 
-        ScrollPane scroll = new ScrollPane(optionsList);
+        VBox content = new VBox(0, infoCard, optTitle, optionsList);
+
+        ScrollPane scroll = new ScrollPane(content);
         scroll.setFitToWidth(true);
         scroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
         VBox.setVgrow(scroll, Priority.ALWAYS);
 
-        rightPanel.getChildren().addAll(infoCard, optTitle, scroll);
+        rightPanel.getChildren().add(scroll);
     }
 
-    // ── Player info card ──────────────────────────────────────────────────────────
+    // ── Info card ─────────────────────────────────────────────────────────────────
 
-    private VBox buildInfoCard(FootballPlayer fp) {
+    private VBox buildInfoCard(Player p) {
         VBox card = new VBox(10);
         card.setPadding(new Insets(16, 20, 16, 20));
-        card.setStyle("-fx-background-color: #1a1a3a; -fx-border-color: #2a2a4a; "
-                + "-fx-border-width: 0 0 1 0;");
+        card.setStyle("-fx-background-color: #1a1a3a; -fx-border-color: #2a2a4a; -fx-border-width: 0 0 1 0;");
 
-        // ── Top row: name + pos badge + age + OVR ────────────────────────────────
         HBox top = new HBox(10);
         top.setAlignment(Pos.CENTER_LEFT);
 
-        Label nameLbl = new Label(fp.getName());
+        Label nameLbl = new Label(p.getName());
         nameLbl.setStyle("-fx-font-size: 17px; -fx-font-weight: bold; -fx-text-fill: white;");
 
-        Label posBadge = positionBadge(fp.getPosition());
+        Label posBadge = positionBadge(p.getPosition());
 
-        Label ageLbl = new Label(fp.getAge() + " yrs");
+        Label ageLbl = new Label(p.getAge() + " yrs");
         ageLbl.setStyle("-fx-text-fill: #888899; -fx-font-size: 12px;");
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        int ovr = fp.getOverallRating();
+        int ovr = p.getOverallRating();
         Label ovrLbl = new Label("OVR  " + ovr);
-        ovrLbl.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: "
-                + ovrColor(ovr) + ";");
+        ovrLbl.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: " + ovrColor(ovr) + ";");
 
         top.getChildren().addAll(nameLbl, posBadge, ageLbl, spacer, ovrLbl);
 
-        // ── Stats row ─────────────────────────────────────────────────────────────
-        HBox statsRow = buildStatsRow(fp);
+        HBox statsRow = buildStatsRow(p);
 
-        // ── Bottom row: form + development hint ──────────────────────────────────
         HBox bottomRow = new HBox(12);
         bottomRow.setAlignment(Pos.CENTER_LEFT);
 
@@ -263,23 +246,19 @@ public class TrainingView extends HBox {
         formBox.setAlignment(Pos.CENTER_LEFT);
         Label formTitleLbl = new Label("Form:");
         formTitleLbl.setStyle("-fx-text-fill: #888899; -fx-font-size: 12px;");
-        Label formValueLbl = formBadge(fp);
-        formBox.getChildren().addAll(formTitleLbl, formValueLbl);
+        formBox.getChildren().addAll(formTitleLbl, formBadge(p));
 
         Region sp2 = new Region();
         HBox.setHgrow(sp2, Priority.ALWAYS);
 
-        String devHint = developmentHint(fp.getAge());
-        Label devLbl = new Label(devHint);
+        Label devLbl = new Label(developmentHint(p.getAge()));
         devLbl.setStyle("-fx-text-fill: #666688; -fx-font-size: 11px;");
 
         bottomRow.getChildren().addAll(formBox, sp2, devLbl);
-
         card.getChildren().addAll(top, statsRow, bottomRow);
 
-        // ── Injured warning ───────────────────────────────────────────────────────
-        if (fp.isInjured()) {
-            Label injLbl = new Label("⛔  Injured — Cannot train  (" + fp.getInjuryGamesRemaining() + " matches)");
+        if (p.isInjured()) {
+            Label injLbl = new Label("⛔  Injured — Cannot train  (" + p.getInjuryGamesRemaining() + " matches)");
             injLbl.setStyle("-fx-text-fill: #ff5252; -fx-font-size: 12px; "
                     + "-fx-background-color: #2a1010; -fx-background-radius: 6; -fx-padding: 6 10;");
             injLbl.setMaxWidth(Double.MAX_VALUE);
@@ -289,29 +268,12 @@ public class TrainingView extends HBox {
         return card;
     }
 
-    /** Compact attribute grid showing all stats for the player. */
-    private HBox buildStatsRow(FootballPlayer fp) {
+    private HBox buildStatsRow(Player p) {
         HBox row = new HBox(0);
         row.setAlignment(Pos.CENTER_LEFT);
-
-        if (fp.getPosition() == FootballPosition.GOALKEEPER) {
-            row.getChildren().addAll(
-                    statBox("PAC", fp.getPace()),
-                    statBox("DIV", fp.getDiving()),
-                    statBox("HAN", fp.getHandling()),
-                    statBox("KIC", fp.getKicking()),
-                    statBox("REF", fp.getReflexes()),
-                    statBox("POS", fp.getPositioning())
-            );
-        } else {
-            row.getChildren().addAll(
-                    statBox("PAC", fp.getPace()),
-                    statBox("SHO", fp.getShooting()),
-                    statBox("PAS", fp.getPassing()),
-                    statBox("DRI", fp.getDribbling()),
-                    statBox("DEF", fp.getDefending()),
-                    statBox("PHY", fp.getPhysical())
-            );
+        List<String> attrs = sport.getAttributeNamesForPosition(p.getPosition());
+        for (String attr : attrs) {
+            row.getChildren().add(statBox(statAbbr(attr), p.getAttributeValue(attr)));
         }
         return row;
     }
@@ -326,8 +288,7 @@ public class TrainingView extends HBox {
         HBox.setHgrow(box, Priority.ALWAYS);
 
         Label valLbl = new Label(String.valueOf(value));
-        valLbl.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: "
-                + statColor(value) + ";");
+        valLbl.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: " + statColor(value) + ";");
 
         Label nameLbl = new Label(label);
         nameLbl.setStyle("-fx-font-size: 9px; -fx-text-fill: #666688;");
@@ -338,9 +299,9 @@ public class TrainingView extends HBox {
 
     // ── Training option card ──────────────────────────────────────────────────────
 
-    private HBox buildOptionCard(FootballPlayer fp, PositionalTrainingOption opt,
+    private HBox buildOptionCard(Player p, PositionalTrainingOption opt,
                                   PlayerTrainingPlan activePlan, boolean isActive) {
-        String cardBg = isActive ? "#0d1f0d" : "#1a1a2e";
+        String cardBg     = isActive ? "#0d1f0d" : "#1a1a2e";
         String borderStyle = isActive
                 ? "-fx-border-color: #27ae60; -fx-border-width: 1.5; -fx-border-radius: 8;"
                 : "-fx-border-color: #2a2a4a; -fx-border-width: 1; -fx-border-radius: 8;";
@@ -348,10 +309,8 @@ public class TrainingView extends HBox {
         HBox card = new HBox(14);
         card.setPadding(new Insets(12, 14, 12, 14));
         card.setAlignment(Pos.CENTER_LEFT);
-        card.setStyle("-fx-background-color: " + cardBg
-                + "; -fx-background-radius: 8; " + borderStyle);
+        card.setStyle("-fx-background-color: " + cardBg + "; -fx-background-radius: 8; " + borderStyle);
 
-        // ── Left info column ──────────────────────────────────────────────────────
         VBox info = new VBox(5);
         HBox.setHgrow(info, Priority.ALWAYS);
 
@@ -369,17 +328,18 @@ public class TrainingView extends HBox {
             attrRow.getChildren().add(attrBadge("ALL ATTRS", "#555577"));
         } else {
             for (String a : opt.getAttributes()) {
-                attrRow.getChildren().add(attrBadge(attrAbbr(a), attrColor(a)));
+                attrRow.getChildren().add(attrBadge(statAbbr(a), attrColor(a)));
             }
         }
 
         String durationDisplay;
-        if (fp.getAge() >= 30) {
+        if (p.getAge() >= 30) {
             durationDisplay = "Maintenance";
         } else {
-            double fF = com.sportsmanager.training.TrainingEngine.formFactor(fp.getForm());
-            double aF = com.sportsmanager.training.TrainingEngine.ageFactor(fp.getAge());
-            int expectedWeeks = (int) Math.max(1, Math.round(((opt.getMinWeeks() + opt.getMaxWeeks()) / 2.0) * (1.0 / fF) * (1.0 / aF)));
+            double fF = com.sportsmanager.training.TrainingEngine.formFactor(p.getForm());
+            double aF = com.sportsmanager.training.TrainingEngine.ageFactor(p.getAge());
+            int expectedWeeks = (int) Math.max(1, Math.round(
+                    ((opt.getMinWeeks() + opt.getMaxWeeks()) / 2.0) * (1.0 / fF) * (1.0 / aF)));
             durationDisplay = expectedWeeks + " week" + (expectedWeeks == 1 ? "" : "s");
         }
         Label durationLbl = new Label("Duration: " + durationDisplay);
@@ -387,7 +347,6 @@ public class TrainingView extends HBox {
 
         info.getChildren().addAll(nameLbl, descLbl, attrRow, durationLbl);
 
-        // ── Right: progress OR assign button ─────────────────────────────────────
         VBox right = new VBox(5);
         right.setAlignment(Pos.CENTER_RIGHT);
         right.setMinWidth(120);
@@ -401,7 +360,7 @@ public class TrainingView extends HBox {
             HBox bars = new HBox(2);
             bars.setAlignment(Pos.CENTER_RIGHT);
 
-            if (fp.getAge() >= 30) {
+            if (p.getAge() >= 30) {
                 progressLbl = new Label("Maintenance");
                 progressLbl.setStyle("-fx-text-fill: #00d2ff; -fx-font-size: 11px; -fx-font-weight: bold;");
                 Rectangle bar = new Rectangle(12, 6);
@@ -411,7 +370,6 @@ public class TrainingView extends HBox {
             } else {
                 progressLbl = new Label(remaining + " week" + (remaining == 1 ? "" : "s") + " left");
                 progressLbl.setStyle("-fx-text-fill: #00d2ff; -fx-font-size: 11px; -fx-font-weight: bold;");
-
                 for (int i = 0; i < total; i++) {
                     Rectangle bar = new Rectangle(8, 6);
                     bar.setArcWidth(3); bar.setArcHeight(3);
@@ -424,23 +382,20 @@ public class TrainingView extends HBox {
             cancelBtn.getStyleClass().add("btn-secondary");
             cancelBtn.setStyle("-fx-font-size: 10px; -fx-padding: 3 8;");
             cancelBtn.setOnAction(e -> {
-                state.cancelTraining(fp);
-                showPlayerDetail(fp);
+                state.cancelTraining(p);
+                showPlayerDetail(p);
                 refreshPlayerList();
             });
-
             right.getChildren().addAll(progressLbl, bars, cancelBtn);
 
         } else {
             Button assignBtn = new Button(activePlan != null ? "Switch" : "Assign");
             assignBtn.getStyleClass().add(activePlan != null ? "btn-secondary" : "btn-primary");
             assignBtn.setStyle("-fx-font-size: 11px; -fx-padding: 5 14;");
-            assignBtn.setDisable(fp.isInjured());
-
+            assignBtn.setDisable(p.isInjured());
             assignBtn.setOnAction(e -> {
-                PlayerTrainingPlan plan = new PlayerTrainingPlan(fp, opt);
-                state.assignTraining(fp, plan);
-                showPlayerDetail(fp);
+                state.assignTraining(p, new PlayerTrainingPlan(p, opt));
+                showPlayerDetail(p);
                 refreshPlayerList();
             });
             right.getChildren().add(assignBtn);
@@ -448,65 +403,88 @@ public class TrainingView extends HBox {
 
         card.getChildren().addAll(info, right);
 
-        if (!fp.isInjured() && !isActive) {
+        if (!p.isInjured() && !isActive) {
             card.setOnMouseEntered(ev -> card.setStyle(
                     "-fx-background-color: #20203a; -fx-background-radius: 8; " + borderStyle));
             card.setOnMouseExited(ev -> card.setStyle(
-                    "-fx-background-color: " + cardBg
-                            + "; -fx-background-radius: 8; " + borderStyle));
+                    "-fx-background-color: " + cardBg + "; -fx-background-radius: 8; " + borderStyle));
         }
 
         return card;
     }
 
-    // ── Badge / label helpers ─────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────────────────
 
-    /** Returns a coloured form badge label. */
-    private Label formBadge(FootballPlayer fp) {
-        double form = fp.getForm();
+    private List<PositionalTrainingOption> trainingOptionsFor(Player p) {
+        if (p instanceof FootballPlayer fp) return FootballTrainingOptions.getFor(fp.getPosition());
+        if (p instanceof HandballPlayer hp) return HandballTrainingOptions.getFor(hp.getPosition());
+        return List.of(FootballTrainingOptions.BALANCED);
+    }
+
+    private Label positionBadge(Position pos) {
+        String abbr;
+        String badgeClass;
+
+        if (pos instanceof FootballPosition fp) {
+            abbr = switch (fp) {
+                case GOALKEEPER           -> "GK";
+                case CENTRE_BACK          -> "CB";
+                case LEFT_BACK            -> "LB";
+                case RIGHT_BACK           -> "RB";
+                case DEFENSIVE_MIDFIELDER -> "CDM";
+                case CENTRAL_MIDFIELDER   -> "CM";
+                case LEFT_MIDFIELDER      -> "LM";
+                case RIGHT_MIDFIELDER     -> "RM";
+                case ATTACKING_MIDFIELDER -> "CAM";
+                case LEFT_WINGER          -> "LW";
+                case RIGHT_WINGER         -> "RW";
+                case STRIKER              -> "ST";
+                case CENTRE_FORWARD       -> "CF";
+            };
+            badgeClass = switch (fp) {
+                case GOALKEEPER -> "badge-gk";
+                case CENTRE_BACK, LEFT_BACK, RIGHT_BACK -> "badge-def";
+                case DEFENSIVE_MIDFIELDER, CENTRAL_MIDFIELDER,
+                     LEFT_MIDFIELDER, RIGHT_MIDFIELDER -> "badge-mid";
+                default -> "badge-fwd";
+            };
+        } else if (pos instanceof HandballPosition hp) {
+            abbr = switch (hp) {
+                case GOALKEEPER  -> "GK";
+                case LEFT_WING   -> "LW";
+                case LEFT_BACK   -> "LB";
+                case CENTER_BACK -> "CB";
+                case RIGHT_BACK  -> "RB";
+                case RIGHT_WING  -> "RW";
+                case PIVOT       -> "PIV";
+            };
+            badgeClass = switch (hp) {
+                case GOALKEEPER  -> "badge-gk";
+                case LEFT_BACK, RIGHT_BACK, CENTER_BACK -> "badge-mid";
+                case LEFT_WING, RIGHT_WING -> "badge-fwd";
+                case PIVOT -> "badge-def";
+            };
+        } else {
+            abbr = "?"; badgeClass = "badge-def";
+        }
+
+        Label lbl = new Label(abbr);
+        lbl.getStyleClass().addAll("badge", badgeClass);
+        return lbl;
+    }
+
+    private Label formBadge(Player p) {
+        double form = p.getForm();
         String text, color;
         if      (form >= 8.5) { text = "Excellent"; color = C_FORM_VG;  }
         else if (form >= 7.5) { text = "Good";      color = C_FORM_G;   }
         else if (form >= 6.5) { text = "Average";   color = C_FORM_MID; }
         else if (form >= 5.5) { text = "Poor";      color = C_FORM_BAD; }
-        else                  { text = "Very Poor";  color = C_FORM_VB;  }
-
+        else                  { text = "Very Poor"; color = C_FORM_VB;  }
         Label lbl = new Label(text);
         lbl.setStyle("-fx-text-fill: white; -fx-font-size: 10px; -fx-font-weight: bold;"
                 + " -fx-background-color: " + color + ";"
                 + " -fx-background-radius: 4; -fx-padding: 2 6;");
-        return lbl;
-    }
-
-    /**
-     * Position badge using the same CSS classes as the rest of the app
-     * (badge, badge-gk / badge-def / badge-mid / badge-fwd).
-     */
-    private Label positionBadge(FootballPosition pos) {
-        String abbr = switch (pos) {
-            case GOALKEEPER           -> "GK";
-            case CENTRE_BACK          -> "CB";
-            case LEFT_BACK            -> "LB";
-            case RIGHT_BACK           -> "RB";
-            case DEFENSIVE_MIDFIELDER -> "CDM";
-            case CENTRAL_MIDFIELDER   -> "CM";
-            case LEFT_MIDFIELDER      -> "LM";
-            case RIGHT_MIDFIELDER     -> "RM";
-            case ATTACKING_MIDFIELDER -> "CAM";
-            case LEFT_WINGER          -> "LW";
-            case RIGHT_WINGER         -> "RW";
-            case STRIKER              -> "ST";
-            case CENTRE_FORWARD       -> "CF";
-        };
-        String badgeClass = switch (pos) {
-            case GOALKEEPER -> "badge-gk";
-            case CENTRE_BACK, LEFT_BACK, RIGHT_BACK -> "badge-def";
-            case DEFENSIVE_MIDFIELDER, CENTRAL_MIDFIELDER,
-                 LEFT_MIDFIELDER, RIGHT_MIDFIELDER -> "badge-mid";
-            default -> "badge-fwd";
-        };
-        Label lbl = new Label(abbr);
-        lbl.getStyleClass().addAll("badge", badgeClass);
         return lbl;
     }
 
@@ -518,7 +496,7 @@ public class TrainingView extends HBox {
         return lbl;
     }
 
-    private String attrAbbr(String attr) {
+    private String statAbbr(String attr) {
         return switch (attr) {
             case "pace"        -> "PAC";
             case "shooting"    -> "SHO";
@@ -531,24 +509,29 @@ public class TrainingView extends HBox {
             case "kicking"     -> "KIC";
             case "reflexes"    -> "REF";
             case "positioning" -> "POS";
-            default            -> attr.substring(0, Math.min(3, attr.length())).toUpperCase();
+            case "speed"       -> "SPD";
+            case "throwing"    -> "THR";
+            case "jumping"     -> "JMP";
+            case "agility"     -> "AGL";
+            case "reach"       -> "RCH";
+            default            -> attr.substring(0, Math.min(3, attr.length())).toUpperCase(java.util.Locale.ROOT);
         };
     }
 
     private String attrColor(String attr) {
         return switch (attr) {
-            case "pace"        -> "#1a6b9a";
-            case "shooting"    -> "#aa1515";
-            case "passing"     -> "#5e1590";
-            case "dribbling"   -> "#0f7a5c";
-            case "defending"   -> "#1255a8";
-            case "physical"    -> "#7a5200";
-            case "diving"      -> "#1a6b9a";
-            case "handling"    -> "#0f7a5c";
-            case "kicking"     -> "#7a5200";
-            case "reflexes"    -> "#aa1515";
-            case "positioning" -> "#5e1590";
-            default            -> "#444455";
+            case "pace", "speed"       -> "#1a6b9a";
+            case "shooting", "throwing"-> "#aa1515";
+            case "passing", "agility"  -> "#5e1590";
+            case "dribbling", "jumping"-> "#0f7a5c";
+            case "defending"           -> "#1255a8";
+            case "physical"            -> "#7a5200";
+            case "diving"              -> "#1a6b9a";
+            case "handling", "reach"   -> "#0f7a5c";
+            case "kicking"             -> "#7a5200";
+            case "reflexes"            -> "#aa1515";
+            case "positioning"         -> "#5e1590";
+            default                    -> "#444455";
         };
     }
 
@@ -558,7 +541,6 @@ public class TrainingView extends HBox {
         return "Veteran — Maintenance mode";
     }
 
-    /** OVR colour: green ≥ 80, blue ≥ 60, orange ≥ 40, red below. */
     private String ovrColor(int ovr) {
         if (ovr >= 80) return "#00e676";
         if (ovr >= 60) return "#00d2ff";
@@ -566,15 +548,12 @@ public class TrainingView extends HBox {
         return "#ff5252";
     }
 
-    /** Stat value colour used in the stats grid. */
     private String statColor(int val) {
         if (val >= 80) return "#00e676";
         if (val >= 65) return "#00d2ff";
         if (val >= 50) return "#ffab40";
         return "#ff5252";
     }
-
-    // ── Static helpers (used by other views) ─────────────────────────────────────
 
     public static String formLabel(double form) {
         if (form >= 8.5) return "Excellent";

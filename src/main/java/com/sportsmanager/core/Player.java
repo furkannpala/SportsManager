@@ -90,6 +90,8 @@ public abstract class Player {
         return suspensionGamesRemaining;
     }
 
+    public double getForm() { return 7.5; }
+
     public boolean isInjured() {
         return injuryStatus;
     }

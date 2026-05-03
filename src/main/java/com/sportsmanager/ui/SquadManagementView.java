@@ -1,7 +1,6 @@
 package com.sportsmanager.ui;
 
 import com.sportsmanager.core.*;
-import com.sportsmanager.football.FootballPlayer;
 import com.sportsmanager.football.FootballPosition;
 import com.sportsmanager.game.GameManager;
 import com.sportsmanager.game.SeasonState;
@@ -58,26 +57,36 @@ public class SquadManagementView extends HBox {
 
         leftPanel.getChildren().addAll(title, scrollList, bottomControls);
 
-        // Right panel — formation pitch + detail card
-        detailPanel = new VBox(16);
-        detailPanel.setPadding(new Insets(20));
-        detailPanel.setAlignment(Pos.TOP_CENTER);
-        HBox.setHgrow(detailPanel, Priority.ALWAYS);
-
-        // Formation pitch always visible at top of right panel (shows first 11 with names)
-        List<Player> first11 = userTeam.getSquad().stream().limit(11).collect(Collectors.toList());
+        // Right panel — formation pitch (fixed) + scrollable detail card
+        int lineupSize = state.getCurrentSport().getStartingLineupSize();
+        List<Player> first11 = userTeam.getSquad().stream().limit(lineupSize).collect(Collectors.toList());
         squadPitchView = new FormationPitchView(null);
         squadPitchView.redrawWithPlayers(userTeam.getFormation(), first11, null, null);
         StackPane pitchWrapper = new StackPane(squadPitchView);
         pitchWrapper.setAlignment(Pos.CENTER);
-        detailPanel.getChildren().add(pitchWrapper);
+
+        detailPanel = new VBox(16);
+        detailPanel.setAlignment(Pos.TOP_CENTER);
+        detailPanel.setPadding(new Insets(0, 0, 16, 0));
 
         Label selectHint = new Label("Select a player to view details");
         selectHint.getStyleClass().add("text-muted");
         selectHint.setStyle("-fx-font-size: 13px;");
         detailPanel.getChildren().add(selectHint);
 
-        getChildren().addAll(leftPanel, detailPanel);
+        ScrollPane cardScroll = new ScrollPane(detailPanel);
+        cardScroll.setFitToWidth(true);
+        cardScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        cardScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        VBox.setVgrow(cardScroll, Priority.ALWAYS);
+
+        VBox rightOuter = new VBox(16);
+        rightOuter.setPadding(new Insets(20));
+        rightOuter.setAlignment(Pos.TOP_CENTER);
+        HBox.setHgrow(rightOuter, Priority.ALWAYS);
+        rightOuter.getChildren().addAll(pitchWrapper, cardScroll);
+
+        getChildren().addAll(leftPanel, rightOuter);
     }
 
     private HBox createPlayerRow(Player p) {
@@ -144,10 +153,6 @@ public class SquadManagementView extends HBox {
 
     private void showPlayerDetail(Player p) {
         detailPanel.getChildren().clear();
-        // Keep pitch view at top
-        StackPane pitchWrapper = new StackPane(squadPitchView);
-        pitchWrapper.setAlignment(Pos.CENTER);
-        detailPanel.getChildren().add(pitchWrapper);
 
         VBox card = new VBox(16);
         card.getStyleClass().add("card");
@@ -250,7 +255,7 @@ public class SquadManagementView extends HBox {
                 if (f.getFormationName().equals(selected)) {
                     userTeam.setFormation(f);
                     if (squadPitchView != null) {
-                        List<Player> top11 = userTeam.getSquad().stream().limit(11).collect(Collectors.toList());
+                        List<Player> top11 = userTeam.getSquad().stream().limit(state.getCurrentSport().getStartingLineupSize()).collect(Collectors.toList());
                         squadPitchView.redrawWithPlayers(f, top11, null, null);
                     }
                     break;
@@ -312,7 +317,8 @@ public class SquadManagementView extends HBox {
         if (name.toLowerCase().startsWith("goalkeeper")) return "GK";
         String[] words = name.split("\\s+");
         if (words.length == 1)
-            return name.length() >= 2 ? name.substring(0, 2).toUpperCase() : name.toUpperCase();
+            return name.length() >= 3 ? name.substring(0, 3).toUpperCase(java.util.Locale.ROOT)
+                                       : name.toUpperCase(java.util.Locale.ROOT);
         StringBuilder sb = new StringBuilder();
         for (String w : words) if (!w.isEmpty()) sb.append(Character.toUpperCase(w.charAt(0)));
         String abbr = sb.toString();

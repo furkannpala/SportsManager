@@ -8,7 +8,10 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextInputDialog;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 
 import java.time.LocalDateTime;
@@ -101,17 +104,97 @@ public class Sidebar extends VBox {
 
             addNavButton("💾  Save Game", this::promptSave);
 
-            addNavButton("🔄  New Game", () -> {
-                ViewManager.getInstance().switchView(new SportSelectionView());
-            });
+            addNavButton("🏠  Main Menu", this::promptMainMenu);
         }
+    }
+
+    private void promptMainMenu() {
+        StackPane contentArea = ViewManager.getInstance().getContentArea();
+        if (contentArea == null) return;
+
+        // ── Dim backdrop ──────────────────────────────────────────────
+        StackPane backdrop = new StackPane();
+        backdrop.setStyle("-fx-background-color: rgba(5,5,20,0.78);");
+
+        // ── Modal card ────────────────────────────────────────────────
+        VBox card = new VBox(20);
+        card.setAlignment(Pos.TOP_LEFT);
+        card.setMaxWidth(400);
+        card.setMaxHeight(javafx.scene.layout.Region.USE_PREF_SIZE);
+        StackPane.setAlignment(card, Pos.CENTER);
+        card.setStyle(
+                "-fx-background-color: #12122a;" +
+                "-fx-background-radius: 12;" +
+                "-fx-border-color: #e94560;" +
+                "-fx-border-width: 1.5;" +
+                "-fx-border-radius: 12;" +
+                "-fx-padding: 28;"
+        );
+
+        Label icon = new Label("🏠");
+        icon.setStyle("-fx-font-size: 28px;");
+
+        Label title = new Label("Return to Main Menu?");
+        title.setStyle("-fx-font-size: 17px; -fx-font-weight: bold; -fx-text-fill: #e0e0ff;");
+
+        Label subtitle = new Label("Do you want to save your progress before leaving?");
+        subtitle.setStyle("-fx-text-fill: #8888aa; -fx-font-size: 12px;");
+        subtitle.setWrapText(true);
+
+        VBox btnGroup = new VBox(8);
+        btnGroup.setFillWidth(true);
+
+        Button saveBtn = new Button("💾  Save & Return to Main Menu");
+        saveBtn.getStyleClass().add("btn-primary");
+        saveBtn.setMaxWidth(Double.MAX_VALUE);
+
+        Button noSaveBtn = new Button("🚪  Exit without Saving");
+        noSaveBtn.getStyleClass().add("btn-secondary");
+        noSaveBtn.setMaxWidth(Double.MAX_VALUE);
+
+        Button cancelBtn = new Button("← Stay in Game");
+        cancelBtn.getStyleClass().add("btn-secondary");
+        cancelBtn.setMaxWidth(Double.MAX_VALUE);
+
+        cancelBtn.setOnAction(e -> contentArea.getChildren().remove(backdrop));
+
+        saveBtn.setOnAction(e -> {
+            contentArea.getChildren().remove(backdrop);
+            promptSave();
+            goToMainMenu();
+        });
+
+        noSaveBtn.setOnAction(e -> {
+            contentArea.getChildren().remove(backdrop);
+            goToMainMenu();
+        });
+
+        btnGroup.getChildren().addAll(saveBtn, noSaveBtn, cancelBtn);
+        card.getChildren().addAll(icon, title, subtitle, btnGroup);
+
+        backdrop.getChildren().add(card);
+        contentArea.getChildren().add(backdrop);
+    }
+
+    private void goToMainMenu() {
+        HBox root = (HBox) getScene().getRoot();
+
+        StackPane contentArea = new StackPane();
+        HBox.setHgrow(contentArea, Priority.ALWAYS);
+
+        ViewManager.getInstance().setContentArea(contentArea);
+        ViewManager.getInstance().setSidebar(null);
+
+        root.getChildren().setAll(contentArea);
+        contentArea.getChildren().add(new SportSelectionView());
     }
 
     private void promptSave() {
         SeasonState state = GameManager.getInstance().getState();
         if (state == null) return;
 
-        String defaultName = state.getUserTeam().getTeamName()
+        String defaultName = state.getCurrentSport().getSportName()
+                + " - " + state.getUserTeam().getTeamName()
                 + " - S" + state.getSeasonNumber()
                 + "W" + state.getCurrentWeek()
                 + " - " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss"));

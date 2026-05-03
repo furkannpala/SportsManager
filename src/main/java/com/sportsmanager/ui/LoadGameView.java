@@ -84,9 +84,13 @@ public class LoadGameView extends VBox {
         Label name = new Label(s.saveName());
         name.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: white;");
 
+        String sportEmoji = s.sportName() != null && s.sportName().contains("handball") ? "🤾" : "⚽";
+        String sportLabel = s.sportName() != null
+                ? (s.sportName().substring(0, 1).toUpperCase() + s.sportName().substring(1))
+                : "Football";
         Label meta = new Label(
-                s.userTeamName() + "  •  Season " + s.seasonNumber()
-                        + "  •  Week " + s.currentWeek());
+                sportEmoji + " " + sportLabel + "  •  " + s.userTeamName()
+                + "  •  Season " + s.seasonNumber() + "  •  Week " + s.currentWeek());
         meta.getStyleClass().add("text-muted");
         meta.setStyle("-fx-font-size: 12px;");
 

@@ -95,7 +95,8 @@ public class SaveGameManager {
                                         data.savedAt,
                                         findUserTeamName(data),
                                         data.seasonNumber,
-                                        data.currentWeek));
+                                        data.currentWeek,
+                                        data.sport != null ? data.sport : "football"));
                             }
                         } catch (Exception ignored) { /* skip bad file */ }
                     });
@@ -361,6 +362,7 @@ public class SaveGameManager {
             String savedAt,
             String userTeamName,
             int seasonNumber,
-            int currentWeek
+            int currentWeek,
+            String sportName
     ) {}
 }
