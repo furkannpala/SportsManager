@@ -117,12 +117,13 @@ public class FootballLeague implements ILeague {
     private MatchResult resolveMatch(MatchEngine engine, Match match) {
         int homeAvailable = match.getHomeTeam().getAvailablePlayers().size();
         int awayAvailable = match.getAwayTeam().getAvailablePlayers().size();
+        int requiredSize = sport.getStartingLineupSize();
 
-        if (homeAvailable < 11 && awayAvailable < 11) {
+        if (homeAvailable < requiredSize && awayAvailable < requiredSize) {
             return new MatchResult(0, 0, List.of()); // mutual forfeit
-        } else if (homeAvailable < 11) {
+        } else if (homeAvailable < requiredSize) {
             return new MatchResult(0, 3, List.of()); // home forfeit
-        } else if (awayAvailable < 11) {
+        } else if (awayAvailable < requiredSize) {
             return new MatchResult(3, 0, List.of()); // away forfeit
         }
         return engine.simulateMatch(match.getHomeTeam(), match.getAwayTeam());

@@ -24,7 +24,7 @@ class MatchStateTest {
 
     @BeforeEach
     void setUp() {
-        state = new MatchState(2, HOME_ID, AWAY_ID);
+        state = new MatchState(2, HOME_ID, AWAY_ID, 11);
     }
 
     // ── Valid home substitution ───────────────────────────────────────────

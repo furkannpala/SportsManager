@@ -61,7 +61,7 @@ public class FootballMatchEngine implements MatchEngine {
         // Reset stamina for the entire squad so the new match starts fresh
         resetSquadStamina(home);
         resetSquadStamina(away);
-        MatchState state = new MatchState(PERIODS, home.getTeamId(), away.getTeamId());
+        MatchState state = new MatchState(PERIODS, home.getTeamId(), away.getTeamId(), FootballSport.MAX_PLAYERS_ON_FIELD);
         distributeSquad(home.getAvailablePlayers(), state.getHomeFieldPlayers(), state.getHomeBenchPlayers());
         distributeSquad(away.getAvailablePlayers(), state.getAwayFieldPlayers(), state.getAwayBenchPlayers());
         return state;

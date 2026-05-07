@@ -30,8 +30,8 @@ public class MatchState {
     private int awaySubsUsed = 0;
 
     // Active player counts (decremented on red cards)
-    private int homeActivePlayers = 11;
-    private int awayActivePlayers = 11;
+    private int homeActivePlayers;
+    private int awayActivePlayers;
 
     // Yellow card tracker — used for two-yellows-equal-red logic
     private final Map<Player, Integer> yellowCardCounts = new HashMap<>();
@@ -50,10 +50,12 @@ public class MatchState {
     private final String homeTeamId;
     private final String awayTeamId;
 
-    public MatchState(int totalPeriods, String homeTeamId, String awayTeamId) {
+    public MatchState(int totalPeriods, String homeTeamId, String awayTeamId, int startingLineupSize) {
         this.totalPeriods = totalPeriods;
         this.homeTeamId   = homeTeamId;
         this.awayTeamId   = awayTeamId;
+        this.homeActivePlayers = startingLineupSize;
+        this.awayActivePlayers = startingLineupSize;
     }
 
     // ── Substitution ──────────────────────────────────────────────────────────

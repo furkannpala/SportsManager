@@ -44,7 +44,7 @@ public class HandballMatchEngine implements MatchEngine {
     public MatchState initMatch(Team home, Team away) {
         resetSquadStamina(home);
         resetSquadStamina(away);
-        MatchState state = new MatchState(PERIODS, home.getTeamId(), away.getTeamId());
+        MatchState state = new MatchState(PERIODS, home.getTeamId(), away.getTeamId(), HandballSport.MAX_PLAYERS_ON_COURT);
         state.setHomeActivePlayers(FIELD_SIZE);
         state.setAwayActivePlayers(FIELD_SIZE);
         distributeSquad(home.getAvailablePlayers(), state.getHomeFieldPlayers(), state.getHomeBenchPlayers());
