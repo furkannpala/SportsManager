@@ -105,6 +105,10 @@ public class Sidebar extends VBox {
             addNavButton("💾  Save Game", this::promptSave);
 
             addNavButton("🏠  Main Menu", this::promptMainMenu);
+
+            addNavButton("📖  User Manual", () -> {
+                ViewManager.getInstance().switchView(new UserManualView());
+            });
         }
     }
 
