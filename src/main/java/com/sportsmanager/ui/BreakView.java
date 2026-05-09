@@ -7,7 +7,6 @@ import com.sportsmanager.handball.HandballEventType;
 import com.sportsmanager.handball.HandballMatchEvent;
 import com.sportsmanager.game.GameManager;
 import com.sportsmanager.game.SeasonState;
-import com.sportsmanager.league.FootballLeague;
 import com.sportsmanager.league.Match;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -289,11 +288,7 @@ public class BreakView extends VBox {
 
     void finishMatch(MatchResult result) {
         SeasonState ss = GameManager.getInstance().getState();
-        if (!(ss.getLeague() instanceof FootballLeague league)) {
-            ViewManager.getInstance().switchView(new MatchSummaryView(match, matchState));
-            return;
-        }
-        league.recordMatchResult(match, result);
+        ss.getLeague().recordMatchResult(match, result);
 
         int currentWeek = ss.getCurrentWeek();
         var fixture = ss.getCurrentFixture();
@@ -303,7 +298,7 @@ public class BreakView extends VBox {
             for (var m : mw.getMatches()) {
                 if (m != match && m.getStatus() == com.sportsmanager.league.MatchStatus.UNPLAYED) {
                     MatchResult r = simEngine.simulateMatch(m.getHomeTeam(), m.getAwayTeam());
-                    league.recordMatchResult(m, r);
+                    ss.getLeague().recordMatchResult(m, r);
                 }
             }
             mw.setCompleted(true);

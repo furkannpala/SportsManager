@@ -5,53 +5,48 @@ import com.sportsmanager.core.MatchEngine;
 import com.sportsmanager.core.MatchResult;
 import com.sportsmanager.core.Sport;
 import com.sportsmanager.core.Team;
+import com.sportsmanager.handball.HandballRuleSet;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Manages a 20-team, 38-week football league.
- *
- * Fixture generation uses the Circle Method (Polygon Method):
- * one pivot is fixed, the remaining 19 teams rotate clockwise for 19 weeks.
- * Weeks 20–38 mirror weeks 1–19 with home/away swapped.
+ * Manages a 16-team, 30-week handball league (double round-robin).
+ * Fixture generation uses the Circle Method: one pivot is fixed,
+ * the remaining 15 teams rotate for 15 weeks; weeks 16-30 mirror with home/away swapped.
  */
-public class FootballLeague implements ILeague {
+public class HandballLeague implements ILeague {
 
-    private static final int TEAM_COUNT  = 20;
-    private static final int TOTAL_WEEKS = 38;
-    private static final int HALF_WEEKS  = 19;
+    private static final int TEAM_COUNT  = 16;
+    private static final int TOTAL_WEEKS = 30;
+    private static final int HALF_WEEKS  = 15;
 
     private final List<Team> teams;
     private final Sport sport;
-    private final FootballRuleSet ruleSet;
+    private final HandballRuleSet ruleSet;
     private final Standings standings;
 
     private Fixture fixture;
     private int currentWeek = 1;
 
-    public FootballLeague(List<Team> teams, Sport sport) {
+    public HandballLeague(List<Team> teams, Sport sport) {
         if (teams.size() != TEAM_COUNT) {
             throw new IllegalArgumentException(
-                    "Football league requires exactly " + TEAM_COUNT + " teams, got " + teams.size());
+                    "Handball league requires exactly " + TEAM_COUNT + " teams, got " + teams.size());
         }
         this.teams    = new ArrayList<>(teams);
         this.sport    = sport;
-        this.ruleSet  = new FootballRuleSet();
+        this.ruleSet  = new HandballRuleSet();
         this.standings = new Standings(ruleSet, this.teams);
         this.ruleSet.setStandings(this.standings);
     }
-
-
-
 
     @Override
     public void generateFixture() {
         fixture = new Fixture();
 
         Team pivot = teams.get(0);
-        List<Team> rest = new ArrayList<>(teams.subList(1, TEAM_COUNT));
-
+        List<Team> rest = new ArrayList<>(teams.subList(1, TEAM_COUNT)); // 15 teams
 
         for (int week = 1; week <= HALF_WEEKS; week++) {
             List<Match> matches = new ArrayList<>();
@@ -64,19 +59,19 @@ public class FootballLeague implements ILeague {
                 matches.add(new Match(lastInRing, pivot));
             }
 
-
-            for (int i = 0; i <= 8; i++) {
-                matches.add(new Match(rest.get(i), rest.get(17 - i)));
+            // 7 pairs from the remaining 14 teams (indices 0–13)
+            for (int i = 0; i <= 6; i++) {
+                matches.add(new Match(rest.get(i), rest.get(13 - i)));
             }
 
             fixture.addWeek(new MatchWeek(week, matches));
 
-
+            // Rotate: move last element to front
             Team last = rest.remove(HALF_WEEKS - 1);
             rest.add(0, last);
         }
 
-
+        // Second half: mirror home/away
         for (int week = HALF_WEEKS + 1; week <= TOTAL_WEEKS; week++) {
             MatchWeek firstHalf = fixture.getWeek(week - HALF_WEEKS);
             List<Match> mirrored = new ArrayList<>();
@@ -89,12 +84,9 @@ public class FootballLeague implements ILeague {
         fixture.setTotalWeeks(TOTAL_WEEKS);
     }
 
-
     @Override
     public void playMatchWeek() {
-        if (fixture == null) {
-            throw new IllegalStateException("Call generateFixture() before playMatchWeek().");
-        }
+        if (fixture == null) throw new IllegalStateException("Call generateFixture() first.");
         MatchWeek weekData = fixture.getWeek(currentWeek);
         MatchEngine engine = sport.createMatchEngine();
 
@@ -109,52 +101,25 @@ public class FootballLeague implements ILeague {
         weekData.setCompleted(true);
     }
 
-    /**
-     * Resolves a match: if either team has fewer than 11 available players,
-     * that team forfeits 0-3. If both are short, the match ends 0-0 (mutual forfeit).
-     * Otherwise the match is simulated normally.
-     */
     private MatchResult resolveMatch(MatchEngine engine, Match match) {
         int homeAvailable = match.getHomeTeam().getAvailablePlayers().size();
         int awayAvailable = match.getAwayTeam().getAvailablePlayers().size();
-        int requiredSize = sport.getStartingLineupSize();
+        int required = sport.getStartingLineupSize();
 
-        if (homeAvailable < requiredSize && awayAvailable < requiredSize) {
-            return new MatchResult(0, 0, List.of()); // mutual forfeit
-        } else if (homeAvailable < requiredSize) {
-            return new MatchResult(0, 3, List.of()); // home forfeit
-        } else if (awayAvailable < requiredSize) {
-            return new MatchResult(3, 0, List.of()); // away forfeit
-        }
+        if (homeAvailable < required && awayAvailable < required) return new MatchResult(0, 0, List.of());
+        if (homeAvailable < required) return new MatchResult(0, 2, List.of());
+        if (awayAvailable < required) return new MatchResult(2, 0, List.of());
         return engine.simulateMatch(match.getHomeTeam(), match.getAwayTeam());
     }
 
-
-    @Override
-    public List<Team> getStandings() {
-        return standings.getSortedTeams();
-    }
-
-    @Override
-    public void advanceWeek() {
-        currentWeek++;
-    }
-
-    @Override public void resetWeek()              { currentWeek = 1; }
-    @Override public void setCurrentWeek(int week) { this.currentWeek = week; }
-    @Override public void setFixture(Fixture f)    { this.fixture = f; }
-
-    @Override
-    public boolean isSeasonOver() {
-        return currentWeek > TOTAL_WEEKS;
-    }
-
-    // ── Extra accessors ───────────────────────────────────────────────────────
-
-    public int getCurrentWeek()           { return currentWeek; }
-    @Override public Fixture getFixture() { return fixture; }
+    @Override public List<Team> getStandings()     { return standings.getSortedTeams(); }
+    @Override public void advanceWeek()             { currentWeek++; }
+    @Override public void resetWeek()               { currentWeek = 1; }
+    @Override public boolean isSeasonOver()         { return currentWeek > TOTAL_WEEKS; }
+    @Override public Fixture getFixture()           { return fixture; }
+    @Override public void setFixture(Fixture f)     { this.fixture = f; }
+    @Override public void setCurrentWeek(int week)  { this.currentWeek = week; }
     @Override public Standings getStandingsObject() { return standings; }
-    public List<Team> getTeams()          { return new ArrayList<>(teams); }
 
     @Override
     public void recordMatchResult(Match match, MatchResult result) {
@@ -162,4 +127,7 @@ public class FootballLeague implements ILeague {
         match.setStatus(MatchStatus.FINISHED);
         standings.update(match);
     }
+
+    public int getCurrentWeek() { return currentWeek; }
+    public List<Team> getTeams() { return new ArrayList<>(teams); }
 }

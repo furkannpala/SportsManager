@@ -41,27 +41,36 @@ public class SaveData {
     public static class PlayerDTO {
         public String name;
         public int    age;
-        public String position;     // FootballPosition enum name
+        public String position;     // position enum name (FootballPosition or HandballPosition)
         public boolean goalkeeper;
 
-        // Outfield attributes
+        // Football outfield attributes
         public int pace;
         public int shooting;
         public int passing;
         public int dribbling;
+
+        // Shared attribute name across sports
         public int defending;
         public int physical;
 
-        // Goalkeeper attributes
+        // Football goalkeeper attributes
         public int diving;
         public int handling;
         public int kicking;
         public int reflexes;
         public int positioning;
 
+        // Handball-specific attributes
+        public int speed;
+        public int throwing;
+        public int jumping;
+        public int agility;
+        public int reach;  // goalkeeper
+
         public int    injuryGamesRemaining;
         public int    suspensionGamesRemaining;
-        public double form = 7.5; // default neutral
+        public double form = 7.5;
     }
 
     public static class MatchWeekDTO {

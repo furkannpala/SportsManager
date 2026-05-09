@@ -11,7 +11,6 @@ import com.sportsmanager.handball.HandballPlayer;
 import com.sportsmanager.handball.HandballPosition;
 import com.sportsmanager.game.GameManager;
 import com.sportsmanager.game.SeasonState;
-import com.sportsmanager.league.FootballLeague;
 import com.sportsmanager.league.Match;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
@@ -903,11 +902,7 @@ public class LiveMatchView extends StackPane {
     private void showMatchEnd() {
         MatchResult result = engine.finalizeMatch(matchState);
         SeasonState ss = GameManager.getInstance().getState();
-        if (!(ss.getLeague() instanceof FootballLeague league)) {
-            ViewManager.getInstance().switchView(new MatchSummaryView(match, matchState));
-            return;
-        }
-        league.recordMatchResult(match, result);
+        ss.getLeague().recordMatchResult(match, result);
 
         int week = ss.getCurrentWeek();
         var fixture = ss.getCurrentFixture();
@@ -916,7 +911,7 @@ public class LiveMatchView extends StackPane {
             MatchEngine simEngine = ss.getCurrentSport().createMatchEngine();
             for (var m : mw.getMatches()) {
                 if (m != match && m.getStatus() == com.sportsmanager.league.MatchStatus.UNPLAYED) {
-                    league.recordMatchResult(m, simEngine.simulateMatch(m.getHomeTeam(), m.getAwayTeam()));
+                    ss.getLeague().recordMatchResult(m, simEngine.simulateMatch(m.getHomeTeam(), m.getAwayTeam()));
                 }
             }
             mw.setCompleted(true);
