@@ -4,10 +4,9 @@ import com.sportsmanager.game.GameManager;
 import com.sportsmanager.game.SeasonState;
 import com.sportsmanager.save.SaveGameManager;
 import javafx.geometry.Pos;
-import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.TextInputDialog;
+import javafx.scene.control.TextField;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -164,8 +163,7 @@ public class Sidebar extends VBox {
 
         saveBtn.setOnAction(e -> {
             contentArea.getChildren().remove(backdrop);
-            promptSave();
-            goToMainMenu();
+            promptSave(this::goToMainMenu);
         });
 
         noSaveBtn.setOnAction(e -> {
@@ -194,8 +192,15 @@ public class Sidebar extends VBox {
     }
 
     private void promptSave() {
+        promptSave(null);
+    }
+
+    private void promptSave(Runnable afterClose) {
         SeasonState state = GameManager.getInstance().getState();
         if (state == null) return;
+
+        StackPane contentArea = ViewManager.getInstance().getContentArea();
+        if (contentArea == null) return;
 
         String defaultName = state.getCurrentSport().getSportName()
                 + " - " + state.getUserTeam().getTeamName()
@@ -203,36 +208,179 @@ public class Sidebar extends VBox {
                 + "W" + state.getCurrentWeek()
                 + " - " + LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm-ss"));
 
-        TextInputDialog dialog = new TextInputDialog(defaultName);
-        dialog.setTitle("Save Game");
-        dialog.setHeaderText("Enter a name for your save");
-        dialog.setContentText("Save name:");
+        StackPane backdrop = new StackPane();
+        backdrop.setStyle("-fx-background-color: rgba(5,5,20,0.78);");
 
-        dialog.showAndWait().ifPresent(name -> {
-            if (name.isBlank()) return;
+        VBox card = new VBox(14);
+        card.setAlignment(Pos.TOP_LEFT);
+        card.setMaxWidth(480);
+        card.setMaxHeight(Region.USE_PREF_SIZE);
+        StackPane.setAlignment(card, Pos.CENTER);
+        card.setStyle(
+                "-fx-background-color: #12122a;" +
+                "-fx-background-radius: 12;" +
+                "-fx-border-color: #e94560;" +
+                "-fx-border-width: 1.5;" +
+                "-fx-border-radius: 12;" +
+                "-fx-padding: 28;"
+        );
+
+        Label icon = new Label("💾");
+        icon.setStyle("-fx-font-size: 28px;");
+
+        Label title = new Label("Save Game");
+        title.setStyle("-fx-font-size: 17px; -fx-font-weight: bold; -fx-text-fill: #e0e0ff;");
+
+        Label subtitle = new Label("Enter a name for your save:");
+        subtitle.setStyle("-fx-text-fill: #8888aa; -fx-font-size: 12px;");
+
+        TextField nameField = new TextField(defaultName);
+        nameField.setPrefWidth(424);
+        nameField.setStyle(
+                "-fx-background-color: #1a1a2e;" +
+                "-fx-border-color: #2a2a4a;" +
+                "-fx-border-radius: 6;" +
+                "-fx-background-radius: 6;" +
+                "-fx-text-fill: #e0e0e0;" +
+                "-fx-font-size: 13px;" +
+                "-fx-padding: 8 12;"
+        );
+
+        Label errorLabel = new Label();
+        errorLabel.setStyle("-fx-text-fill: #ff5252; -fx-font-size: 11px;");
+        errorLabel.setManaged(false);
+        errorLabel.setVisible(false);
+
+        VBox btnGroup = new VBox(8);
+        btnGroup.setFillWidth(true);
+
+        Button saveBtn = new Button("💾  Save Game");
+        saveBtn.getStyleClass().add("btn-primary");
+        saveBtn.setMaxWidth(Double.MAX_VALUE);
+
+        Button cancelBtn = new Button("← Cancel");
+        cancelBtn.getStyleClass().add("btn-secondary");
+        cancelBtn.setMaxWidth(Double.MAX_VALUE);
+
+        cancelBtn.setOnAction(e -> {
+            contentArea.getChildren().remove(backdrop);
+            if (afterClose != null) afterClose.run();
+        });
+
+        saveBtn.setOnAction(e -> {
+            String name = nameField.getText().trim();
+            if (name.isBlank()) {
+                errorLabel.setText("Save name cannot be empty.");
+                errorLabel.setManaged(true);
+                errorLabel.setVisible(true);
+                return;
+            }
             try {
-                SaveGameManager.getInstance().save(name.trim());
-                showInfo("Game saved as \"" + name.trim() + "\".");
+                SaveGameManager.getInstance().save(name);
+                contentArea.getChildren().remove(backdrop);
+                showCustomInfo("Game saved as \"" + name + "\".", afterClose);
             } catch (Exception ex) {
-                showError(ex.getMessage() == null ? "Unknown error" : ex.getMessage());
+                String msg = ex.getMessage() == null ? "Unknown error" : ex.getMessage();
+                errorLabel.setText(msg);
+                errorLabel.setManaged(true);
+                errorLabel.setVisible(true);
             }
         });
+
+        nameField.selectAll();
+        btnGroup.getChildren().addAll(saveBtn, cancelBtn);
+        card.getChildren().addAll(icon, title, subtitle, nameField, errorLabel, btnGroup);
+        backdrop.getChildren().add(card);
+        contentArea.getChildren().add(backdrop);
+        nameField.requestFocus();
     }
 
-    private void showInfo(String message) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Save Successful");
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+    private void showCustomInfo(String message, Runnable afterClose) {
+        StackPane contentArea = ViewManager.getInstance().getContentArea();
+        if (contentArea == null) {
+            if (afterClose != null) afterClose.run();
+            return;
+        }
+
+        StackPane backdrop = new StackPane();
+        backdrop.setStyle("-fx-background-color: rgba(5,5,20,0.65);");
+
+        VBox card = new VBox(14);
+        card.setAlignment(Pos.TOP_LEFT);
+        card.setMaxWidth(380);
+        card.setMaxHeight(Region.USE_PREF_SIZE);
+        StackPane.setAlignment(card, Pos.CENTER);
+        card.setStyle(
+                "-fx-background-color: #12122a;" +
+                "-fx-background-radius: 12;" +
+                "-fx-border-color: #00e676;" +
+                "-fx-border-width: 1.5;" +
+                "-fx-border-radius: 12;" +
+                "-fx-padding: 24;"
+        );
+
+        Label icon = new Label("✅");
+        icon.setStyle("-fx-font-size: 28px;");
+
+        Label title = new Label("Save Successful");
+        title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #e0e0ff;");
+
+        Label msg = new Label(message);
+        msg.setStyle("-fx-text-fill: #8888aa; -fx-font-size: 12px;");
+        msg.setWrapText(true);
+
+        Button okBtn = new Button("OK");
+        okBtn.getStyleClass().add("btn-primary");
+        okBtn.setMaxWidth(Double.MAX_VALUE);
+        okBtn.setOnAction(e -> {
+            contentArea.getChildren().remove(backdrop);
+            if (afterClose != null) afterClose.run();
+        });
+
+        card.getChildren().addAll(icon, title, msg, okBtn);
+        backdrop.getChildren().add(card);
+        contentArea.getChildren().add(backdrop);
     }
 
-    private void showError(String message) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("Save Failed");
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+    private void showCustomError(String message) {
+        StackPane contentArea = ViewManager.getInstance().getContentArea();
+        if (contentArea == null) return;
+
+        StackPane backdrop = new StackPane();
+        backdrop.setStyle("-fx-background-color: rgba(5,5,20,0.65);");
+
+        VBox card = new VBox(14);
+        card.setAlignment(Pos.TOP_LEFT);
+        card.setMaxWidth(380);
+        card.setMaxHeight(Region.USE_PREF_SIZE);
+        StackPane.setAlignment(card, Pos.CENTER);
+        card.setStyle(
+                "-fx-background-color: #12122a;" +
+                "-fx-background-radius: 12;" +
+                "-fx-border-color: #ff5252;" +
+                "-fx-border-width: 1.5;" +
+                "-fx-border-radius: 12;" +
+                "-fx-padding: 24;"
+        );
+
+        Label icon = new Label("❌");
+        icon.setStyle("-fx-font-size: 28px;");
+
+        Label title = new Label("Save Failed");
+        title.setStyle("-fx-font-size: 16px; -fx-font-weight: bold; -fx-text-fill: #e0e0ff;");
+
+        Label msg = new Label(message);
+        msg.setStyle("-fx-text-fill: #8888aa; -fx-font-size: 12px;");
+        msg.setWrapText(true);
+
+        Button okBtn = new Button("OK");
+        okBtn.getStyleClass().add("btn-secondary");
+        okBtn.setMaxWidth(Double.MAX_VALUE);
+        okBtn.setOnAction(e -> contentArea.getChildren().remove(backdrop));
+
+        card.getChildren().addAll(icon, title, msg, okBtn);
+        backdrop.getChildren().add(card);
+        contentArea.getChildren().add(backdrop);
     }
 
     private void addNavButton(String text, Runnable action) {
