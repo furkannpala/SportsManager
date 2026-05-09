@@ -2,6 +2,7 @@ package com.sportsmanager.save;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.sportsmanager.core.ILeague;
 import com.sportsmanager.core.Player;
 import com.sportsmanager.core.Sport;
 import com.sportsmanager.core.Team;
@@ -10,10 +11,16 @@ import com.sportsmanager.football.FootballPlayer;
 import com.sportsmanager.football.FootballPosition;
 import com.sportsmanager.football.FootballSport;
 import com.sportsmanager.football.FootballTactic;
+import com.sportsmanager.handball.HandballFormation;
+import com.sportsmanager.handball.HandballPlayer;
+import com.sportsmanager.handball.HandballPosition;
+import com.sportsmanager.handball.HandballSport;
+import com.sportsmanager.handball.HandballTactic;
 import com.sportsmanager.game.GameManager;
 import com.sportsmanager.game.SeasonState;
 import com.sportsmanager.league.Fixture;
 import com.sportsmanager.league.FootballLeague;
+import com.sportsmanager.league.HandballLeague;
 import com.sportsmanager.league.Match;
 import com.sportsmanager.league.MatchStatus;
 import com.sportsmanager.league.MatchWeek;
@@ -166,7 +173,9 @@ public class SaveGameManager {
         dto.teamId   = team.getTeamId();
         dto.teamName = team.getTeamName();
         if (team.getFormation() instanceof FootballFormation ff) dto.formationName = ff.name();
-        if (team.getTactic()    instanceof FootballTactic ft)   dto.tacticName    = ft.name();
+        else if (team.getFormation() instanceof HandballFormation hf) dto.formationName = hf.name();
+        if (team.getTactic() instanceof FootballTactic ft)   dto.tacticName = ft.name();
+        else if (team.getTactic() instanceof HandballTactic ht) dto.tacticName = ht.name();
         for (Player p : team.getSquad()) {
             dto.players.add(serializePlayer(p));
         }
@@ -195,6 +204,20 @@ public class SaveGameManager {
             dto.reflexes    = fp.getReflexes();
             dto.positioning = fp.getPositioning();
             dto.form        = fp.getForm();
+        } else if (p instanceof HandballPlayer hp) {
+            dto.position   = hp.getPosition().name();
+            dto.goalkeeper = hp.getPosition() == HandballPosition.GOALKEEPER;
+            dto.speed      = hp.getSpeed();
+            dto.throwing   = hp.getThrowing();
+            dto.jumping    = hp.getJumping();
+            dto.agility    = hp.getAgility();
+            dto.defending  = hp.getDefending();
+            dto.physical   = hp.getPhysical();
+            dto.reflexes   = hp.getReflexes();
+            dto.diving     = hp.getDiving();
+            dto.reach      = hp.getReach();
+            dto.positioning = hp.getPositioning();
+            dto.form       = hp.getForm();
         }
         return dto;
     }
@@ -235,16 +258,18 @@ public class SaveGameManager {
         SaveData data = gson.fromJson(Files.readString(path), SaveData.class);
         if (data == null) return false;
 
-        Sport sport = resolveSport();
+        Sport sport = resolveSport(data.sport);
         List<Team> teams = new ArrayList<>();
         for (SaveData.TeamDTO td : data.teams) {
-            teams.add(deserializeTeam(td));
+            teams.add(deserializeTeam(td, sport));
         }
 
         Team userTeam = findTeam(teams, data.userTeamId);
         if (userTeam == null && !teams.isEmpty()) userTeam = teams.get(0);
 
-        FootballLeague league = new FootballLeague(teams, sport);
+        ILeague league = (sport instanceof HandballSport)
+                ? new HandballLeague(teams, sport)
+                : new FootballLeague(teams, sport);
         Fixture fixture = deserializeFixture(data.fixture, teams);
         league.setFixture(fixture);
         league.setCurrentWeek(data.currentWeek);
@@ -274,28 +299,45 @@ public class SaveGameManager {
         return true;
     }
 
-    private Sport resolveSport() {
-        // Football is currently the only supported sport.
+    private Sport resolveSport(String sportName) {
+        if ("handball".equalsIgnoreCase(sportName)) return new HandballSport();
         return new FootballSport();
     }
 
-    private Team deserializeTeam(SaveData.TeamDTO dto) {
+    private Team deserializeTeam(SaveData.TeamDTO dto, Sport sport) {
         Team team = new Team(dto.teamId, dto.teamName);
         if (dto.formationName != null) {
-            try { team.setFormation(FootballFormation.valueOf(dto.formationName)); }
-            catch (IllegalArgumentException ignored) { }
+            if (sport instanceof HandballSport) {
+                try { team.setFormation(HandballFormation.valueOf(dto.formationName)); }
+                catch (IllegalArgumentException ignored) { }
+            } else {
+                try { team.setFormation(FootballFormation.valueOf(dto.formationName)); }
+                catch (IllegalArgumentException ignored) { }
+            }
         }
         if (dto.tacticName != null) {
-            try { team.setTactic(FootballTactic.valueOf(dto.tacticName)); }
-            catch (IllegalArgumentException ignored) { }
+            if (sport instanceof HandballSport) {
+                try { team.setTactic(HandballTactic.valueOf(dto.tacticName)); }
+                catch (IllegalArgumentException ignored) { }
+            } else {
+                try { team.setTactic(FootballTactic.valueOf(dto.tacticName)); }
+                catch (IllegalArgumentException ignored) { }
+            }
         }
         for (SaveData.PlayerDTO pd : dto.players) {
-            team.addPlayer(deserializePlayer(pd));
+            team.addPlayer(deserializePlayer(pd, sport));
         }
         return team;
     }
 
-    private FootballPlayer deserializePlayer(SaveData.PlayerDTO d) {
+    private Player deserializePlayer(SaveData.PlayerDTO d, Sport sport) {
+        if (sport instanceof HandballSport) {
+            return deserializeHandballPlayer(d);
+        }
+        return deserializeFootballPlayer(d);
+    }
+
+    private FootballPlayer deserializeFootballPlayer(SaveData.PlayerDTO d) {
         FootballPosition position;
         try {
             position = FootballPosition.valueOf(d.position);
@@ -312,6 +354,30 @@ public class SaveGameManager {
             player = FootballPlayer.createOutfield(
                     d.name, d.age, position,
                     d.pace, d.shooting, d.passing, d.dribbling, d.defending, d.physical);
+        }
+        if (d.injuryGamesRemaining > 0)     player.applyInjury(d.injuryGamesRemaining);
+        if (d.suspensionGamesRemaining > 0) player.applySuspension(d.suspensionGamesRemaining);
+        player.setForm(d.form);
+        return player;
+    }
+
+    private HandballPlayer deserializeHandballPlayer(SaveData.PlayerDTO d) {
+        HandballPosition position;
+        try {
+            position = HandballPosition.valueOf(d.position);
+        } catch (IllegalArgumentException | NullPointerException e) {
+            position = d.goalkeeper ? HandballPosition.GOALKEEPER : HandballPosition.CENTER_BACK;
+        }
+
+        HandballPlayer player;
+        if (position == HandballPosition.GOALKEEPER) {
+            player = HandballPlayer.createGoalkeeper(
+                    d.name, d.age,
+                    d.speed, d.reflexes, d.diving, d.reach, d.positioning, d.physical);
+        } else {
+            player = HandballPlayer.createOutfield(
+                    d.name, d.age, position,
+                    d.speed, d.throwing, d.jumping, d.agility, d.defending, d.physical);
         }
         if (d.injuryGamesRemaining > 0)     player.applyInjury(d.injuryGamesRemaining);
         if (d.suspensionGamesRemaining > 0) player.applySuspension(d.suspensionGamesRemaining);
