@@ -188,6 +188,25 @@ public class FootballPlayer extends Player {
     public int getEmergencyGoalkeeperRating() {
         return clamp((int) Math.round((defending * 0.5 + physical * 0.3 + pace * 0.2) * 0.6));
     }
+
+    /**
+     * Returns the OVR this player achieves when playing at {@code playingPosition}.
+     * Applies a zone-distance penalty when the position differs from their natural one.
+     */
+    public int getEffectiveOverall(FootballPosition playingPosition) {
+        if (playingPosition == null || playingPosition == this.position) {
+            return getOverallRating();
+        }
+        if (playingPosition == FootballPosition.GOALKEEPER
+                || this.position == FootballPosition.GOALKEEPER) return 25;
+        int penalty = FootballPosition.getOutOfPositionPenalty(this.position, playingPosition);
+        return Math.max(1, getOverallRating() - penalty);
+    }
+
+    /** True when the player is not at their natural position. */
+    public boolean isOutOfPosition(FootballPosition playingPosition) {
+        return playingPosition != null && playingPosition != this.position;
+    }
     private static int clamp(int value) {
         return Math.max(1, Math.min(100, value));
     }
