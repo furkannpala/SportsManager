@@ -80,6 +80,49 @@ public class LiveMatchView extends StackPane {
         build();
     }
 
+    /** Starts a match using a pre-arranged match-specific lineup for the user's team. */
+    public LiveMatchView(Match match, java.util.List<Player> userMatchLineup) {
+        this.state  = GameManager.getInstance().getState();
+        this.match  = match;
+        this.home   = match.getHomeTeam();
+        this.away   = match.getAwayTeam();
+        this.engine = state.getCurrentSport().createMatchEngine();
+        // Normal init first (populates both teams from their squads)
+        this.matchState = engine.initMatch(home, away);
+
+        // Override the user's team field/bench with the match-specific lineup
+        Sport sport    = state.getCurrentSport();
+        Team userTeam  = state.getUserTeam();
+        boolean isHome = userTeam == home;
+        List<Player> field = isHome ? matchState.getHomeFieldPlayers() : matchState.getAwayFieldPlayers();
+        List<Player> bench = isHome ? matchState.getHomeBenchPlayers() : matchState.getAwayBenchPlayers();
+
+        java.util.List<Player> available = userMatchLineup.stream()
+                .filter(Player::isAvailable)
+                .collect(java.util.stream.Collectors.toList());
+
+        int fieldSize = sport.getStartingLineupSize();
+        field.clear();
+        bench.clear();
+        for (int i = 0; i < available.size(); i++) {
+            if (i < fieldSize) field.add(available.get(i));
+            else               bench.add(available.get(i));
+        }
+
+        // Re-seed playing positions for the user's team based on the new order
+        Formation formation = userTeam.getFormation();
+        if (formation != null) {
+            java.util.List<Position> slots = formation.getPositionSlots();
+            for (int i = 0; i < field.size() && i < slots.size(); i++) {
+                matchState.setPlayingPosition(field.get(i), slots.get(i));
+            }
+        }
+
+        this.totalMinutes = state.getCurrentSport().getMatchPeriodCount()
+                          * state.getCurrentSport().getMatchPeriodDurationMinutes();
+        build();
+    }
+
     public LiveMatchView(Match match, MatchState matchState, MatchEngine engine) {
         this.state        = GameManager.getInstance().getState();
         this.match        = match;
@@ -611,17 +654,47 @@ public class LiveMatchView extends StackPane {
         List<Player> fieldPlayers = isHome
                 ? matchState.getHomeFieldPlayers()
                 : matchState.getAwayFieldPlayers();
+        String userTeamId = userTeam.getTeamId();
 
-        // Left: pitch
+        // Mutable swap state (arrays allow capture in lambdas)
+        Player[] pendingSwap = {null};
+
         FormationPitchView pitchView = new FormationPitchView(null);
-        pitchView.redrawWithPlayers(userTeam.getFormation(), fieldPlayers, null, null);
+
+        Label swapLbl = new Label("Click a player to select, then click another to swap.");
+        swapLbl.setStyle("-fx-font-size: 10px; -fx-text-fill: #888899;");
+        swapLbl.setWrapText(true);
+        swapLbl.setMaxWidth(260);
+
+        Runnable[] refreshTacticsPitch = {null};
+        refreshTacticsPitch[0] = () ->
+            pitchView.redrawWithPlayers(
+                userTeam.getFormation(), fieldPlayers, pendingSwap[0], clicked -> {
+                    if (pendingSwap[0] == null) {
+                        pendingSwap[0] = clicked;
+                        swapLbl.setText("Selected: " + clicked.getName() + " — click another to swap.");
+                        swapLbl.setStyle("-fx-font-size: 10px; -fx-text-fill: #00e676;");
+                    } else if (pendingSwap[0] == clicked) {
+                        pendingSwap[0] = null;
+                        swapLbl.setText("Click a player to select, then click another to swap.");
+                        swapLbl.setStyle("-fx-font-size: 10px; -fx-text-fill: #888899;");
+                    } else {
+                        matchState.swapFieldPositions(userTeamId, pendingSwap[0], clicked);
+                        pendingSwap[0] = null;
+                        swapLbl.setText("Click a player to select, then click another to swap.");
+                        swapLbl.setStyle("-fx-font-size: 10px; -fx-text-fill: #888899;");
+                    }
+                    refreshTacticsPitch[0].run();
+                });
+
+        refreshTacticsPitch[0].run();
 
         VBox leftPanel = new VBox(8);
         leftPanel.setPadding(new Insets(16, 10, 16, 16));
         leftPanel.setAlignment(Pos.TOP_CENTER);
         Label pitchTitle = new Label("Formation");
         pitchTitle.setStyle("-fx-font-size: 15px; -fx-font-weight: bold; -fx-text-fill: #e0e0ff;");
-        leftPanel.getChildren().addAll(pitchTitle, new StackPane(pitchView));
+        leftPanel.getChildren().addAll(pitchTitle, new StackPane(pitchView), swapLbl);
 
         // Right: controls
         VBox rightPanel = new VBox(10);
@@ -639,7 +712,7 @@ public class LiveMatchView extends StackPane {
             for (Formation f : sport.getFormations()) {
                 if (f.getFormationName().equals(formBox.getValue())) {
                     userTeam.setFormation(f);
-                    pitchView.redrawWithPlayers(f, fieldPlayers, null, null);
+                    refreshTacticsPitch[0].run();
                     break;
                 }
             }
