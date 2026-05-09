@@ -30,6 +30,9 @@ public class PreMatchSetupView extends StackPane {
 
     private final int lineupSize;
 
+    // Match-specific lineup — a reorderable copy of squad that never touches Team data.
+    private final List<Player> matchLineup;
+
     private Player selectedPlayer = null;
     private HBox selectedRow = null;
     private final List<HBox> playerRows = new ArrayList<>();
@@ -43,6 +46,7 @@ public class PreMatchSetupView extends StackPane {
         this.match = match;
         this.userTeam = state.getUserTeam();
         this.lineupSize = state.getCurrentSport().getStartingLineupSize();
+        this.matchLineup = new ArrayList<>(userTeam.getSquad());
 
         VBox main = new VBox(16);
         main.setPadding(new Insets(20));
@@ -182,8 +186,8 @@ public class PreMatchSetupView extends StackPane {
     // ── Pitch refresh ─────────────────────────────────────────────────
     private void refreshPitchView() {
         if (pitchView == null) return;
-        List<Player> starters = userTeam.getSquad().subList(0, Math.min(lineupSize, userTeam.getSquad().size()));
-        pitchView.redrawWithPlayers(userTeam.getFormation(), starters, null, null);
+        List<Player> starters = matchLineup.subList(0, Math.min(lineupSize, matchLineup.size()));
+        pitchView.redrawWithPlayers(userTeam.getFormation(), starters, selectedPlayer, this::onPitchPlayerClick);
     }
 
     // ── Lineup refresh & interaction ──────────────────────────────────
@@ -197,9 +201,8 @@ public class PreMatchSetupView extends StackPane {
         lineupTitle.getStyleClass().add("section-label");
         lineupCard.getChildren().add(lineupTitle);
 
-        List<Player> squad = userTeam.getSquad();
-        for (int i = 0; i < Math.min(lineupSize, squad.size()); i++) {
-            Player p = squad.get(i);
+        for (int i = 0; i < Math.min(lineupSize, matchLineup.size()); i++) {
+            Player p = matchLineup.get(i);
             HBox row = createPlayerRow(p, true);
             playerRows.add(row);
             lineupCard.getChildren().add(row);
@@ -210,8 +213,8 @@ public class PreMatchSetupView extends StackPane {
         benchTitle.setPadding(new Insets(8, 0, 0, 0));
         lineupCard.getChildren().add(benchTitle);
 
-        for (int i = lineupSize; i < squad.size(); i++) {
-            Player p = squad.get(i);
+        for (int i = lineupSize; i < matchLineup.size(); i++) {
+            Player p = matchLineup.get(i);
             HBox row = createPlayerRow(p, false);
             playerRows.add(row);
             lineupCard.getChildren().add(row);
@@ -226,27 +229,38 @@ public class PreMatchSetupView extends StackPane {
             selectedPlayer = clicked;
             selectedRow = clickedRow;
             highlightRow(clickedRow, true);
-            hintLabel.setText("Selected: " + clicked.getName() + " — now click the player to swap with.");
+            hintLabel.setText("Selected: " + clicked.getName() + " — click another to swap.");
+            refreshPitchView();
         } else if (selectedPlayer == clicked) {
             clearSelection();
         } else {
-            int idxA = playerRows.indexOf(selectedRow);
-            int idxB = playerRows.indexOf(clickedRow);
-            boolean aIsStarter = idxA < lineupSize;
-            boolean bIsStarter = idxB < lineupSize;
-
-            if (aIsStarter == bIsStarter) {
-                highlightRow(selectedRow, false);
-                selectedPlayer = clicked;
-                selectedRow = clickedRow;
-                highlightRow(clickedRow, true);
-                hintLabel.setText("Selected: " + clicked.getName() + " — now click the player to swap with.");
-            } else {
-                userTeam.swapPlayers(selectedPlayer, clicked);
-                hintLabel.setText("Click a player to select, then click another to swap.");
-                refreshLineupCard();
-            }
+            swapInLineup(selectedPlayer, clicked);
+            hintLabel.setText("Click a player to select, then click another to swap.");
+            refreshLineupCard();
         }
+    }
+
+    private void onPitchPlayerClick(Player clicked) {
+        if (selectedPlayer == null) {
+            selectedPlayer = clicked;
+            selectedRow = null;
+            hintLabel.setText("Selected: " + clicked.getName() + " — click another to swap.");
+            refreshPitchView();
+        } else if (selectedPlayer == clicked) {
+            clearSelection();
+        } else {
+            swapInLineup(selectedPlayer, clicked);
+            hintLabel.setText("Click a player to select, then click another to swap.");
+            refreshLineupCard();
+        }
+    }
+
+    private void swapInLineup(Player a, Player b) {
+        int idxA = matchLineup.indexOf(a);
+        int idxB = matchLineup.indexOf(b);
+        if (idxA < 0 || idxB < 0) return;
+        matchLineup.set(idxA, b);
+        matchLineup.set(idxB, a);
     }
 
     private void clearSelection() {
@@ -254,6 +268,7 @@ public class PreMatchSetupView extends StackPane {
         selectedPlayer = null;
         selectedRow = null;
         hintLabel.setText("Click a player to select, then click another to swap.");
+        refreshPitchView();
     }
 
     private void highlightRow(HBox row, boolean selected) {
@@ -271,10 +286,9 @@ public class PreMatchSetupView extends StackPane {
     // ── Warning overlay ───────────────────────────────────────────────
 
     private void handleStartMatch() {
-        List<Player> squad = userTeam.getSquad();
         List<String> unavailable = new ArrayList<>();
-        for (int i = 0; i < Math.min(lineupSize, squad.size()); i++) {
-            Player p = squad.get(i);
+        for (int i = 0; i < Math.min(lineupSize, matchLineup.size()); i++) {
+            Player p = matchLineup.get(i);
             if (!p.isAvailable()) {
                 String suffix = p.isSuspended()
                         ? "suspended — " + p.getSuspensionGamesRemaining() + " match" + (p.getSuspensionGamesRemaining() > 1 ? "es" : "")
@@ -283,13 +297,13 @@ public class PreMatchSetupView extends StackPane {
             }
         }
 
-        boolean hasAvailableBench = squad.subList(Math.min(lineupSize, squad.size()), squad.size())
+        boolean hasAvailableBench = matchLineup.subList(Math.min(lineupSize, matchLineup.size()), matchLineup.size())
                 .stream().anyMatch(Player::isAvailable);
 
         if (!unavailable.isEmpty() && hasAvailableBench) {
             showWarningOverlay(unavailable);
         } else {
-            ViewManager.getInstance().switchView(new LiveMatchView(match));
+            ViewManager.getInstance().switchView(new LiveMatchView(match, new ArrayList<>(matchLineup)));
         }
     }
 
@@ -347,7 +361,7 @@ public class PreMatchSetupView extends StackPane {
         continueBtn.getStyleClass().add("btn-primary");
         continueBtn.setOnAction(e -> {
             overlayLayer.setVisible(false);
-            ViewManager.getInstance().switchView(new LiveMatchView(match));
+            ViewManager.getInstance().switchView(new LiveMatchView(match, new ArrayList<>(matchLineup)));
         });
 
         buttons.getChildren().addAll(goBackBtn, continueBtn);
