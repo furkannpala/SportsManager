@@ -6,6 +6,8 @@ import com.sportsmanager.core.Position;
 import com.sportsmanager.football.FootballPlayer;
 import com.sportsmanager.football.FootballPosition;
 import com.sportsmanager.game.GameManager;
+import com.sportsmanager.handball.HandballPlayer;
+import com.sportsmanager.handball.HandballPosition;
 import com.sportsmanager.handball.HandballSport;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -283,6 +285,9 @@ public class FormationPitchView extends Pane {
         if (player instanceof FootballPlayer fp && pos instanceof FootballPosition slotPos) {
             displayOvr = fp.getEffectiveOverall(slotPos);
             outOfPos   = fp.isOutOfPosition(slotPos);
+        } else if (player instanceof HandballPlayer hp && pos instanceof HandballPosition slotPos) {
+            displayOvr = hp.getEffectiveOverall(slotPos);
+            outOfPos   = hp.isOutOfPosition(slotPos);
         }
 
         // ── Visual style ──────────────────────────────────────────────────────
