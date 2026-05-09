@@ -36,6 +36,11 @@ public class MatchState {
     // Yellow card tracker — used for two-yellows-equal-red logic
     private final Map<Player, Integer> yellowCardCounts = new HashMap<>();
 
+    // In-match position assignments: maps each field player to the position they
+    // are currently instructed to play. Initialized from the formation at match
+    // start; updated by tactical positional swaps. Never touches Team/Player data.
+    private final Map<Player, Position> playingPositions = new HashMap<>();
+
     // Live stats
     private int homeShots = 0;
     private int awayShots = 0;
@@ -56,6 +61,44 @@ public class MatchState {
         this.awayTeamId   = awayTeamId;
         this.homeActivePlayers = startingLineupSize;
         this.awayActivePlayers = startingLineupSize;
+    }
+
+    // ── In-match positional assignments ──────────────────────────────────────────
+
+    /**
+     * Returns the position this player is currently assigned to play.
+     * Falls back to the player's natural position when no assignment exists.
+     */
+    public Position getPlayingPosition(Player p) {
+        Position assigned = playingPositions.get(p);
+        return (assigned != null) ? assigned : p.getPosition();
+    }
+
+    /** Records the position a field player is assigned to for this match. */
+    public void setPlayingPosition(Player p, Position pos) {
+        playingPositions.put(p, pos);
+    }
+
+    /**
+     * Swaps two field players' in-match positions and their slot in the field
+     * list (which controls the visual ordering on the pitch).
+     * Has no effect on any permanent Team or Player data.
+     *
+     * @return true if both players were found and the swap was applied
+     */
+    public boolean swapFieldPositions(String teamId, Player a, Player b) {
+        List<Player> field = teamId.equals(homeTeamId) ? homeFieldPlayers : awayFieldPlayers;
+        int idxA = field.indexOf(a);
+        int idxB = field.indexOf(b);
+        if (idxA < 0 || idxB < 0 || idxA == idxB) return false;
+
+        Position posA = getPlayingPosition(a);
+        Position posB = getPlayingPosition(b);
+        playingPositions.put(a, posB);
+        playingPositions.put(b, posA);
+        field.set(idxA, b);
+        field.set(idxB, a);
+        return true;
     }
 
     // ── Substitution ──────────────────────────────────────────────────────────

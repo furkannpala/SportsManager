@@ -12,24 +12,53 @@ import javafx.scene.layout.*;
 import java.util.List;
 
 /**
- * Half-time tactics panel. Left: formation pitch with player names. Right: controls.
+ * Half-time tactics panel.
+ *
+ * Left: Formation pitch with click-to-swap player positions.
+ *   1st click  — selects a player (green highlight, status label updated).
+ *   2nd click  — swaps the two players in MatchState (field list + playing
+ *                position map). The engine uses the new positions from the
+ *                next simulated minute onward. No permanent Team data touched.
+ *   Re-click   — deselects the currently selected player.
+ *
+ * Right: Formation ComboBox + tactic style buttons.
  */
 public class TacticsView extends HBox {
 
-    public TacticsView(Match match, MatchState matchState, MatchEngine engine) {
-        SeasonState state = GameManager.getInstance().getState();
-        Sport sport = state.getCurrentSport();
-        Team userTeam = state.getUserTeam();
-        boolean isHome = userTeam == match.getHomeTeam();
+    private final Match match;
+    private final MatchState matchState;
+    private final MatchEngine engine;
+    private final Sport sport;
+    private final Team userTeam;
+    private final String teamId;
+    private final List<Player> fieldPlayers;
 
-        List<Player> fieldPlayers = isHome
+    private FormationPitchView pitchView;
+    private Player pendingSwap = null;
+    private Label swapStatusLabel;
+
+    public TacticsView(Match match, MatchState matchState, MatchEngine engine) {
+        this.match        = match;
+        this.matchState   = matchState;
+        this.engine       = engine;
+        SeasonState state = GameManager.getInstance().getState();
+        this.sport        = state.getCurrentSport();
+        this.userTeam     = state.getUserTeam();
+        this.teamId       = userTeam.getTeamId();
+        boolean isHome    = userTeam == match.getHomeTeam();
+        this.fieldPlayers = isHome
                 ? matchState.getHomeFieldPlayers()
                 : matchState.getAwayFieldPlayers();
 
         setSpacing(0);
+        buildUI();
+    }
 
+    // ── Build ────────────────────────────────────────────────────────────────────
+
+    private void buildUI() {
         // ── Left: pitch ──────────────────────────────────────────────────────────
-        VBox leftPanel = new VBox(10);
+        VBox leftPanel = new VBox(8);
         leftPanel.setPadding(new Insets(20, 12, 20, 20));
         leftPanel.setAlignment(Pos.TOP_CENTER);
         leftPanel.setStyle("-fx-background-color: #16213e;");
@@ -39,8 +68,13 @@ public class TacticsView extends HBox {
         Label title = new Label("Tactics");
         title.setStyle("-fx-font-size: 18px; -fx-font-weight: bold; -fx-text-fill: #e0e0ff;");
 
-        FormationPitchView pitchView = new FormationPitchView(null);
-        pitchView.redrawWithPlayers(userTeam.getFormation(), fieldPlayers, null, null);
+        swapStatusLabel = new Label("Click a player to select, then click another to swap positions.");
+        swapStatusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #888899;");
+        swapStatusLabel.setWrapText(true);
+        swapStatusLabel.setMaxWidth(260);
+
+        pitchView = new FormationPitchView(null);
+        refreshPitch();
         StackPane pitchWrapper = new StackPane(pitchView);
         pitchWrapper.setAlignment(Pos.CENTER);
 
@@ -50,7 +84,7 @@ public class TacticsView extends HBox {
         backBtn.setOnAction(e ->
                 ViewManager.getInstance().switchView(new BreakView(match, matchState, engine)));
 
-        leftPanel.getChildren().addAll(title, pitchWrapper, backBtn);
+        leftPanel.getChildren().addAll(title, swapStatusLabel, pitchWrapper, backBtn);
 
         // ── Right: controls ──────────────────────────────────────────────────────
         VBox rightPanel = new VBox(10);
@@ -70,7 +104,7 @@ public class TacticsView extends HBox {
             for (Formation f : sport.getFormations()) {
                 if (f.getFormationName().equals(sel)) {
                     userTeam.setFormation(f);
-                    pitchView.redrawWithPlayers(f, fieldPlayers, null, null);
+                    refreshPitch();
                     break;
                 }
             }
@@ -96,7 +130,44 @@ public class TacticsView extends HBox {
         }
 
         rightPanel.getChildren().addAll(formLabel, formationBox, styleLabel, tacticButtons);
-
         getChildren().addAll(leftPanel, rightPanel);
+    }
+
+    // ── Pitch ────────────────────────────────────────────────────────────────────
+
+    private void refreshPitch() {
+        pitchView.redrawWithPlayers(
+                userTeam.getFormation(), fieldPlayers, pendingSwap, this::onPitchPlayerClick);
+    }
+
+    /**
+     * MouseClick handler wired into every player node on the pitch.
+     * 1st call  → selects the player (pendingSwap set, green highlight shown).
+     * Same player again → deselects.
+     * Different player → swaps in MatchState and redraws.
+     */
+    private void onPitchPlayerClick(Player clicked) {
+        if (pendingSwap == null) {
+            pendingSwap = clicked;
+        } else if (pendingSwap == clicked) {
+            pendingSwap = null;
+        } else {
+            matchState.swapFieldPositions(teamId, pendingSwap, clicked);
+            pendingSwap = null;
+        }
+        updateSwapStatus();
+        refreshPitch();
+    }
+
+    private void updateSwapStatus() {
+        if (pendingSwap != null) {
+            swapStatusLabel.setText(
+                    "Selected: " + pendingSwap.getName() + " — click another player to swap.");
+            swapStatusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #00e676;");
+        } else {
+            swapStatusLabel.setText(
+                    "Click a player to select, then click another to swap positions.");
+            swapStatusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #888899;");
+        }
     }
 }

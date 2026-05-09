@@ -3,6 +3,7 @@ package com.sportsmanager.ui;
 import com.sportsmanager.core.Formation;
 import com.sportsmanager.core.Player;
 import com.sportsmanager.core.Position;
+import com.sportsmanager.football.FootballPlayer;
 import com.sportsmanager.football.FootballPosition;
 import com.sportsmanager.game.GameManager;
 import com.sportsmanager.handball.HandballSport;
@@ -276,15 +277,28 @@ public class FormationPitchView extends Pane {
                                   boolean isSelected,
                                   Consumer<Player> onPlayerClick,
                                   BiConsumer<Node, Player> decorator) {
-        Color borderColor = isSelected ? Color.web("#e94560") : Color.WHITE;
-        double borderWidth = isSelected ? 3.0 : 1.5;
-        Color bgColor = isSelected ? nodeColor(pos).brighter() : nodeColor(pos);
+        // ── Effective OVR & out-of-position detection ─────────────────────────
+        int displayOvr = (player != null) ? player.getOverallRating() : -1;
+        boolean outOfPos = false;
+        if (player instanceof FootballPlayer fp && pos instanceof FootballPosition slotPos) {
+            displayOvr = fp.getEffectiveOverall(slotPos);
+            outOfPos   = fp.isOutOfPosition(slotPos);
+        }
+
+        // ── Visual style ──────────────────────────────────────────────────────
+        Color borderColor = isSelected ? Color.web("#e94560")
+                          : outOfPos   ? Color.web("#ff9800")
+                          : Color.WHITE;
+        double borderWidth = isSelected ? 3.0 : outOfPos ? 2.5 : 1.5;
+        Color bgColor = isSelected ? nodeColor(pos).brighter()
+                       : outOfPos  ? Color.web("#7a3800")
+                       : nodeColor(pos);
 
         Circle bg = new Circle(R, bgColor);
         bg.setStroke(borderColor);
         bg.setStrokeWidth(borderWidth);
 
-        String innerText = player != null ? String.valueOf(player.getOverallRating()) : abbr(pos);
+        String innerText = player != null ? String.valueOf(displayOvr) : abbr(pos);
         Text innerLbl = new Text(innerText);
         innerLbl.setFont(Font.font("System", FontWeight.BOLD, innerText.length() >= 3 ? 8.0 : 10.0));
         innerLbl.setFill(Color.WHITE);
@@ -300,7 +314,9 @@ public class FormationPitchView extends Pane {
         if (player != null) {
             Text nameLbl = new Text(surname(player));
             nameLbl.setFont(Font.font("System", FontWeight.BOLD, 7.5));
-            nameLbl.setFill(isSelected ? Color.web("#ffaaaa") : Color.WHITE);
+            nameLbl.setFill(isSelected ? Color.web("#ffaaaa")
+                           : outOfPos  ? Color.web("#ffcc80")
+                           : Color.WHITE);
             nameLbl.setTextAlignment(TextAlignment.CENTER);
 
             StackPane staminaBar = StaminaBar.create(player, R * 2, 3);
