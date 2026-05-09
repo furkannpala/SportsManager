@@ -5,6 +5,8 @@ import com.sportsmanager.football.FootballEventType;
 import com.sportsmanager.football.FootballMatchEvent;
 import com.sportsmanager.football.FootballPlayer;
 import com.sportsmanager.football.FootballPosition;
+import com.sportsmanager.handball.HandballEventType;
+import com.sportsmanager.handball.HandballMatchEvent;
 import com.sportsmanager.handball.HandballPlayer;
 import com.sportsmanager.handball.HandballPosition;
 import com.sportsmanager.game.GameManager;
@@ -786,6 +788,14 @@ public class LiveMatchView extends StackPane {
                     case SUBSTITUTION -> { row.getStyleClass().add("commentary-normal");      desc.setStyle("-fx-text-fill: #00d2ff; -fx-font-size: 12px;"); }
                     default           -> { row.getStyleClass().add("commentary-normal");      desc.getStyleClass().add("text-normal"); desc.setStyle("-fx-font-size: 12px;"); }
                 }
+            } else if (event instanceof HandballMatchEvent hme) {
+                switch (hme.getEventType()) {
+                    case GOAL              -> { row.getStyleClass().add("commentary-goal");        desc.setStyle("-fx-text-fill: #00e676; -fx-font-weight: bold;"); }
+                    case YELLOW_CARD       -> { row.getStyleClass().add("commentary-card-yellow"); desc.setStyle("-fx-text-fill: #ffd740;"); }
+                    case RED_CARD          -> { row.getStyleClass().add("commentary-card-red");    desc.setStyle("-fx-text-fill: #ff5252; -fx-font-weight: bold;"); }
+                    case TWO_MIN_SUSPENSION-> { row.getStyleClass().add("commentary-normal");      desc.setStyle("-fx-text-fill: #ff9800; -fx-font-size: 12px;"); }
+                    default                -> { row.getStyleClass().add("commentary-normal");      desc.getStyleClass().add("text-normal"); desc.setStyle("-fx-font-size: 12px;"); }
+                }
             } else {
                 row.getStyleClass().add("commentary-normal");
                 desc.getStyleClass().add("text-normal");
@@ -801,15 +811,27 @@ public class LiveMatchView extends StackPane {
         if (statsBox.getChildren().size() > 1)
             statsBox.getChildren().remove(1, statsBox.getChildren().size());
 
-        int homeFouls = 0, awayFouls = 0, homeCards = 0, awayCards = 0,
-                homeOffsides = 0, awayOffsides = 0;
+        int homeFouls = 0, awayFouls = 0,
+                homeYellows = 0, awayYellows = 0,
+                homeReds = 0, awayReds = 0,
+                homeOffsides = 0, awayOffsides = 0,
+                homeSuspensions = 0, awaySuspensions = 0;
         for (MatchEvent ev : matchState.getEvents()) {
+            boolean h = ev.getTeamId().equals(home.getTeamId());
             if (ev instanceof FootballMatchEvent fme) {
-                boolean h = fme.getTeamId().equals(home.getTeamId());
                 switch (fme.getEventType()) {
-                    case FOUL                   -> { if (h) homeFouls++;    else awayFouls++; }
-                    case YELLOW_CARD, RED_CARD  -> { if (h) homeCards++;    else awayCards++; }
-                    case OFFSIDE                -> { if (h) homeOffsides++; else awayOffsides++; }
+                    case FOUL        -> { if (h) homeFouls++;    else awayFouls++; }
+                    case YELLOW_CARD -> { if (h) homeYellows++;  else awayYellows++; }
+                    case RED_CARD    -> { if (h) homeReds++;      else awayReds++; }
+                    case OFFSIDE     -> { if (h) homeOffsides++;  else awayOffsides++; }
+                    default -> {}
+                }
+            } else if (ev instanceof HandballMatchEvent hme) {
+                switch (hme.getEventType()) {
+                    case FOUL               -> { if (h) homeFouls++;       else awayFouls++; }
+                    case YELLOW_CARD        -> { if (h) homeYellows++;     else awayYellows++; }
+                    case RED_CARD           -> { if (h) homeReds++;         else awayReds++; }
+                    case TWO_MIN_SUSPENSION -> { if (h) homeSuspensions++; else awaySuspensions++; }
                     default -> {}
                 }
             }
@@ -819,34 +841,60 @@ public class LiveMatchView extends StackPane {
         int homeShots = matchState.getHomeShots();
         int awayShots = matchState.getAwayShots();
 
-        addStatRow("Possession", homePoss + "%", (100 - homePoss) + "%", homePoss / 100.0);
-        addStatRow("Shots",      String.valueOf(homeShots), String.valueOf(awayShots),
+        addStatRow("Possession",   homePoss + "%", (100 - homePoss) + "%", homePoss / 100.0);
+        addStatRow("Shots",        String.valueOf(homeShots), String.valueOf(awayShots),
                 homeShots + awayShots > 0 ? (double) homeShots / (homeShots + awayShots) : 0.5);
-        addStatRow("Fouls",      String.valueOf(homeFouls), String.valueOf(awayFouls),
+        addStatRow("Fouls",        String.valueOf(homeFouls), String.valueOf(awayFouls),
                 homeFouls + awayFouls > 0 ? (double) homeFouls / (homeFouls + awayFouls) : 0.5);
-        addStatRow("Cards",      String.valueOf(homeCards),    String.valueOf(awayCards),    0.5);
-        addStatRow("Offsides",   String.valueOf(homeOffsides), String.valueOf(awayOffsides), 0.5);
+        addStatRow("Yellow Cards", String.valueOf(homeYellows), String.valueOf(awayYellows),
+                homeYellows + awayYellows > 0 ? (double) homeYellows / (homeYellows + awayYellows) : 0.5);
+        addStatRow("Red Cards",    String.valueOf(homeReds), String.valueOf(awayReds),
+                homeReds + awayReds > 0 ? (double) homeReds / (homeReds + awayReds) : 0.5);
+        if (homeOffsides + awayOffsides > 0)
+            addStatRow("Offsides", String.valueOf(homeOffsides), String.valueOf(awayOffsides),
+                    (double) homeOffsides / (homeOffsides + awayOffsides));
+        if (homeSuspensions + awaySuspensions > 0)
+            addStatRow("2-Min Susp.", String.valueOf(homeSuspensions), String.valueOf(awaySuspensions),
+                    (double) homeSuspensions / (homeSuspensions + awaySuspensions));
     }
 
     private void addStatRow(String label, String homeVal, String awayVal, double ratio) {
-        HBox values = new HBox();
         Label homeLbl = new Label(homeVal);
-        homeLbl.setStyle("-fx-text-fill: #00d2ff; -fx-font-size: 12px;");
+        homeLbl.setStyle("-fx-text-fill: #00d2ff; -fx-font-size: 12px; -fx-font-weight: bold;");
         homeLbl.setMinWidth(30);
+
         Label nameLbl = new Label(label);
         nameLbl.getStyleClass().add("text-muted");
-        nameLbl.setStyle("-fx-font-size: 11px;");
+        nameLbl.setStyle("-fx-font-size: 10px;");
         HBox.setHgrow(nameLbl, Priority.ALWAYS);
         nameLbl.setAlignment(Pos.CENTER);
         nameLbl.setMaxWidth(Double.MAX_VALUE);
+
         Label awayLbl = new Label(awayVal);
-        awayLbl.setStyle("-fx-text-fill: #e94560; -fx-font-size: 12px;");
+        awayLbl.setStyle("-fx-text-fill: #e94560; -fx-font-size: 12px; -fx-font-weight: bold;");
         awayLbl.setMinWidth(30);
         awayLbl.setAlignment(Pos.CENTER_RIGHT);
-        values.getChildren().addAll(homeLbl, nameLbl, awayLbl);
-        VBox row = new VBox(2);
-        row.setPadding(new Insets(4, 0, 4, 0));
-        row.getChildren().add(values);
+
+        HBox values = new HBox(4, homeLbl, nameLbl, awayLbl);
+        values.setAlignment(Pos.CENTER_LEFT);
+
+        // Ratio bar: home (blue) | away (red)
+        double clampedRatio = Math.max(0.0, Math.min(1.0, ratio));
+        Region homeBar = new Region();
+        homeBar.setStyle("-fx-background-color: #00d2ff; -fx-background-radius: 2 0 0 2;");
+        Region awayBar = new Region();
+        awayBar.setStyle("-fx-background-color: #e94560; -fx-background-radius: 0 2 2 0;");
+        HBox.setHgrow(homeBar, Priority.ALWAYS);
+        HBox.setHgrow(awayBar, Priority.ALWAYS);
+        HBox bar = new HBox(homeBar, awayBar);
+        bar.setPrefHeight(4);
+        bar.setMaxWidth(Double.MAX_VALUE);
+        // Bind widths proportionally after layout
+        homeBar.prefWidthProperty().bind(bar.widthProperty().multiply(clampedRatio));
+        awayBar.prefWidthProperty().bind(bar.widthProperty().multiply(1.0 - clampedRatio));
+
+        VBox row = new VBox(2, values, bar);
+        row.setPadding(new Insets(3, 0, 3, 0));
         statsBox.getChildren().add(row);
     }
 
@@ -855,7 +903,10 @@ public class LiveMatchView extends StackPane {
     private void showMatchEnd() {
         MatchResult result = engine.finalizeMatch(matchState);
         SeasonState ss = GameManager.getInstance().getState();
-        FootballLeague league = (FootballLeague) ss.getLeague();
+        if (!(ss.getLeague() instanceof FootballLeague league)) {
+            ViewManager.getInstance().switchView(new MatchSummaryView(match, matchState));
+            return;
+        }
         league.recordMatchResult(match, result);
 
         int week = ss.getCurrentWeek();

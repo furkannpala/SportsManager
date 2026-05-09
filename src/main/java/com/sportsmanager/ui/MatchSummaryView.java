@@ -5,6 +5,8 @@ import com.sportsmanager.core.MatchState;
 import com.sportsmanager.core.Team;
 import com.sportsmanager.football.FootballEventType;
 import com.sportsmanager.football.FootballMatchEvent;
+import com.sportsmanager.handball.HandballEventType;
+import com.sportsmanager.handball.HandballMatchEvent;
 import com.sportsmanager.league.Match;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -80,8 +82,11 @@ public class MatchSummaryView extends VBox {
         timeline.setPadding(new Insets(4, 8, 4, 8));
 
         List<MatchEvent> events = matchState.getEvents().stream()
-                .filter(e -> e instanceof FootballMatchEvent fme
-                        && isKeyEvent(fme.getEventType()))
+                .filter(e -> {
+                    if (e instanceof FootballMatchEvent fme) return isKeyFootballEvent(fme.getEventType());
+                    if (e instanceof HandballMatchEvent hme) return isKeyHandballEvent(hme.getEventType());
+                    return false;
+                })
                 .sorted(Comparator.comparingInt(MatchEvent::getMinute))
                 .toList();
 
@@ -93,9 +98,8 @@ public class MatchSummaryView extends VBox {
             timeline.getChildren().add(none);
         } else {
             for (MatchEvent ev : events) {
-                FootballMatchEvent fme = (FootballMatchEvent) ev;
-                boolean isHome = fme.getTeamId().equals(home.getTeamId());
-                timeline.getChildren().add(buildEventRow(fme, isHome));
+                boolean isHome = ev.getTeamId().equals(home.getTeamId());
+                timeline.getChildren().add(buildEventRow(ev, isHome));
             }
         }
 
@@ -112,32 +116,26 @@ public class MatchSummaryView extends VBox {
         getChildren().addAll(fullTime, scoreRow, colHeaders, scroll, backBtn);
     }
 
-    /**
-     * Builds one timeline row. Home events are left-aligned, away events right-aligned.
-     * Layout: [icon + text | spacer] for home, [spacer | text + icon] for away.
-     */
-    private HBox buildEventRow(FootballMatchEvent fme, boolean isHome) {
+    private HBox buildEventRow(MatchEvent ev, boolean isHome) {
         HBox row = new HBox(8);
         row.setAlignment(Pos.CENTER);
         row.setPadding(new Insets(3, 0, 3, 0));
 
-        Node icon = createIcon(fme.getEventType());
+        Node icon = createIcon(ev);
 
-        Label desc = new Label(fme.getDescription());
+        Label desc = new Label(ev.getDescription());
         desc.setWrapText(true);
-        desc.setStyle(descStyle(fme.getEventType()));
+        desc.setStyle(descStyle(ev));
         desc.setMaxWidth(Double.MAX_VALUE);
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         if (isHome) {
-            // icon + text on the left, spacer on the right
             HBox.setHgrow(desc, Priority.SOMETIMES);
             row.getChildren().addAll(icon, desc, spacer);
             row.setAlignment(Pos.CENTER_LEFT);
         } else {
-            // spacer on the left, text + icon on the right
             desc.setAlignment(Pos.CENTER_RIGHT);
             HBox.setHgrow(desc, Priority.SOMETIMES);
             row.getChildren().addAll(spacer, desc, icon);
@@ -147,74 +145,96 @@ public class MatchSummaryView extends VBox {
         return row;
     }
 
-    private boolean isKeyEvent(FootballEventType type) {
+    private boolean isKeyFootballEvent(FootballEventType type) {
         return type == FootballEventType.GOAL
                 || type == FootballEventType.YELLOW_CARD
                 || type == FootballEventType.RED_CARD
                 || type == FootballEventType.SUBSTITUTION;
     }
 
-    private Node createIcon(FootballEventType type) {
-        return switch (type) {
-            case GOAL -> {
-                Circle ball = new Circle(9);
-                ball.setFill(Color.web("#1a1a2e"));
-                ball.setStroke(Color.web("#00e676"));
-                ball.setStrokeWidth(2.5);
-                Circle inner = new Circle(4);
-                inner.setFill(Color.web("#00e676"));
-                StackPane sp = new StackPane(ball, inner);
-                sp.setMinSize(20, 20);
-                sp.setMaxSize(20, 20);
-                yield sp;
-            }
-            case YELLOW_CARD -> {
-                Rectangle card = new Rectangle(12, 17);
-                card.setFill(Color.web("#ffd740"));
-                card.setArcWidth(3);
-                card.setArcHeight(3);
-                StackPane sp = new StackPane(card);
-                sp.setMinSize(20, 20);
-                sp.setMaxSize(20, 20);
-                yield sp;
-            }
-            case RED_CARD -> {
-                Rectangle card = new Rectangle(12, 17);
-                card.setFill(Color.web("#ff5252"));
-                card.setArcWidth(3);
-                card.setArcHeight(3);
-                StackPane sp = new StackPane(card);
-                sp.setMinSize(20, 20);
-                sp.setMaxSize(20, 20);
-                yield sp;
-            }
-            case SUBSTITUTION -> {
-                Label up = new Label("↑");
-                up.setStyle("-fx-text-fill: #00e676; -fx-font-size: 11px; -fx-font-weight: bold;");
-                Label down = new Label("↓");
-                down.setStyle("-fx-text-fill: #ff5252; -fx-font-size: 11px; -fx-font-weight: bold;");
-                VBox arrows = new VBox(up, down);
-                arrows.setAlignment(Pos.CENTER);
-                arrows.setMinSize(20, 20);
-                arrows.setMaxSize(20, 20);
-                yield arrows;
-            }
-            default -> {
-                StackPane sp = new StackPane();
-                sp.setMinSize(20, 20);
-                sp.setMaxSize(20, 20);
-                yield sp;
-            }
-        };
+    private boolean isKeyHandballEvent(HandballEventType type) {
+        return type == HandballEventType.GOAL
+                || type == HandballEventType.YELLOW_CARD
+                || type == HandballEventType.RED_CARD
+                || type == HandballEventType.TWO_MIN_SUSPENSION;
     }
 
-    private String descStyle(FootballEventType type) {
-        return switch (type) {
-            case GOAL         -> "-fx-text-fill: #00e676; -fx-font-weight: bold; -fx-font-size: 13px;";
-            case YELLOW_CARD  -> "-fx-text-fill: #ffd740; -fx-font-size: 13px;";
-            case RED_CARD     -> "-fx-text-fill: #ff5252; -fx-font-weight: bold; -fx-font-size: 13px;";
-            case SUBSTITUTION -> "-fx-text-fill: #aaaacc; -fx-font-size: 13px;";
-            default           -> "-fx-font-size: 12px;";
-        };
+    private Node createIcon(MatchEvent ev) {
+        boolean isGoal = (ev instanceof FootballMatchEvent fme && fme.getEventType() == FootballEventType.GOAL)
+                || (ev instanceof HandballMatchEvent hme && hme.getEventType() == HandballEventType.GOAL);
+        boolean isYellow = (ev instanceof FootballMatchEvent fme && fme.getEventType() == FootballEventType.YELLOW_CARD)
+                || (ev instanceof HandballMatchEvent hme && hme.getEventType() == HandballEventType.YELLOW_CARD);
+        boolean isRed = (ev instanceof FootballMatchEvent fme && fme.getEventType() == FootballEventType.RED_CARD)
+                || (ev instanceof HandballMatchEvent hme && hme.getEventType() == HandballEventType.RED_CARD);
+        boolean isSub = ev instanceof FootballMatchEvent fme && fme.getEventType() == FootballEventType.SUBSTITUTION;
+        boolean is2Min = ev instanceof HandballMatchEvent hme && hme.getEventType() == HandballEventType.TWO_MIN_SUSPENSION;
+
+        if (isGoal) {
+            Circle ball = new Circle(9);
+            ball.setFill(Color.web("#1a1a2e"));
+            ball.setStroke(Color.web("#00e676"));
+            ball.setStrokeWidth(2.5);
+            Circle inner = new Circle(4);
+            inner.setFill(Color.web("#00e676"));
+            StackPane sp = new StackPane(ball, inner);
+            sp.setMinSize(20, 20); sp.setMaxSize(20, 20);
+            return sp;
+        }
+        if (isYellow) {
+            Rectangle card = new Rectangle(12, 17);
+            card.setFill(Color.web("#ffd740")); card.setArcWidth(3); card.setArcHeight(3);
+            StackPane sp = new StackPane(card);
+            sp.setMinSize(20, 20); sp.setMaxSize(20, 20);
+            return sp;
+        }
+        if (isRed) {
+            Rectangle card = new Rectangle(12, 17);
+            card.setFill(Color.web("#ff5252")); card.setArcWidth(3); card.setArcHeight(3);
+            StackPane sp = new StackPane(card);
+            sp.setMinSize(20, 20); sp.setMaxSize(20, 20);
+            return sp;
+        }
+        if (isSub) {
+            Label up = new Label("↑");
+            up.setStyle("-fx-text-fill: #00e676; -fx-font-size: 11px; -fx-font-weight: bold;");
+            Label down = new Label("↓");
+            down.setStyle("-fx-text-fill: #ff5252; -fx-font-size: 11px; -fx-font-weight: bold;");
+            VBox arrows = new VBox(up, down);
+            arrows.setAlignment(Pos.CENTER);
+            arrows.setMinSize(20, 20); arrows.setMaxSize(20, 20);
+            return arrows;
+        }
+        if (is2Min) {
+            Label lbl = new Label("2'");
+            lbl.setStyle("-fx-text-fill: #ff9800; -fx-font-size: 10px; -fx-font-weight: bold;");
+            StackPane sp = new StackPane(lbl);
+            sp.setMinSize(20, 20); sp.setMaxSize(20, 20);
+            return sp;
+        }
+        StackPane sp = new StackPane();
+        sp.setMinSize(20, 20); sp.setMaxSize(20, 20);
+        return sp;
+    }
+
+    private String descStyle(MatchEvent ev) {
+        if (ev instanceof FootballMatchEvent fme) {
+            return switch (fme.getEventType()) {
+                case GOAL         -> "-fx-text-fill: #00e676; -fx-font-weight: bold; -fx-font-size: 13px;";
+                case YELLOW_CARD  -> "-fx-text-fill: #ffd740; -fx-font-size: 13px;";
+                case RED_CARD     -> "-fx-text-fill: #ff5252; -fx-font-weight: bold; -fx-font-size: 13px;";
+                case SUBSTITUTION -> "-fx-text-fill: #aaaacc; -fx-font-size: 13px;";
+                default           -> "-fx-font-size: 12px;";
+            };
+        }
+        if (ev instanceof HandballMatchEvent hme) {
+            return switch (hme.getEventType()) {
+                case GOAL               -> "-fx-text-fill: #00e676; -fx-font-weight: bold; -fx-font-size: 13px;";
+                case YELLOW_CARD        -> "-fx-text-fill: #ffd740; -fx-font-size: 13px;";
+                case RED_CARD           -> "-fx-text-fill: #ff5252; -fx-font-weight: bold; -fx-font-size: 13px;";
+                case TWO_MIN_SUSPENSION -> "-fx-text-fill: #ff9800; -fx-font-size: 13px;";
+                default                 -> "-fx-font-size: 12px;";
+            };
+        }
+        return "-fx-font-size: 12px;";
     }
 }
