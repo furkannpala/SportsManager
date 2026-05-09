@@ -49,7 +49,19 @@ public class HandballMatchEngine implements MatchEngine {
         state.setAwayActivePlayers(FIELD_SIZE);
         distributeSquad(home.getAvailablePlayers(), state.getHomeFieldPlayers(), state.getHomeBenchPlayers());
         distributeSquad(away.getAvailablePlayers(), state.getAwayFieldPlayers(), state.getAwayBenchPlayers());
+
+        if (home.getFormation() != null)
+            seedPlayingPositions(state, state.getHomeFieldPlayers(), home.getFormation().getPositionSlots());
+        if (away.getFormation() != null)
+            seedPlayingPositions(state, state.getAwayFieldPlayers(), away.getFormation().getPositionSlots());
+
         return state;
+    }
+
+    private void seedPlayingPositions(MatchState state, List<Player> fieldPlayers, List<Position> slots) {
+        for (int i = 0; i < fieldPlayers.size() && i < slots.size(); i++) {
+            state.setPlayingPosition(fieldPlayers.get(i), slots.get(i));
+        }
     }
 
     @Override
@@ -77,10 +89,10 @@ public class HandballMatchEngine implements MatchEngine {
         List<HandballPlayer> homeP = handballPlayers(state.getHomeFieldPlayers());
         List<HandballPlayer> awayP = handballPlayers(state.getAwayFieldPlayers());
 
-        double homeAtk = attackStrength(homeP, homeTactic, state.getHomeActivePlayers());
-        double awayAtk = attackStrength(awayP, awayTactic, state.getAwayActivePlayers());
-        double homeDef = defenseStrength(homeP, homeTactic, state.getHomeActivePlayers());
-        double awayDef = defenseStrength(awayP, awayTactic, state.getAwayActivePlayers());
+        double homeAtk = attackStrength(homeP, homeTactic, state.getHomeActivePlayers(), state);
+        double awayAtk = attackStrength(awayP, awayTactic, state.getAwayActivePlayers(), state);
+        double homeDef = defenseStrength(homeP, homeTactic, state.getHomeActivePlayers(), state);
+        double awayDef = defenseStrength(awayP, awayTactic, state.getAwayActivePlayers(), state);
 
         // Home attacks
         double homeProb = BASE_EVENT_PROB
@@ -225,22 +237,33 @@ public class HandballMatchEngine implements MatchEngine {
 
     // ── Strength calculation ──────────────────────────────────────────────────
 
-    private double attackStrength(List<HandballPlayer> players, HandballTactic tactic, int activeCount) {
+    private double attackStrength(List<HandballPlayer> players, HandballTactic tactic,
+                                   int activeCount, MatchState state) {
         List<HandballPlayer> attackers = players.stream()
-                .filter(p -> !p.getPosition().isGoalkeeper() && p.getPosition().isAttacking())
+                .filter(p -> !playingPosition(p, state).isGoalkeeper() && playingPosition(p, state).isAttacking())
                 .collect(Collectors.toList());
-        double base = attackers.isEmpty()
-                ? average(players) : attackers.stream().mapToInt(HandballPlayer::getOverallRating).average().orElse(50);
+        List<HandballPlayer> group = attackers.isEmpty() ? players : attackers;
+        double base = group.stream()
+                .mapToInt(p -> p.getEffectiveOverall(playingPosition(p, state)))
+                .average().orElse(50);
         return base * (1 + tactic.getGoalProbabilityModifier()) * ((double) activeCount / FIELD_SIZE);
     }
 
-    private double defenseStrength(List<HandballPlayer> players, HandballTactic tactic, int activeCount) {
+    private double defenseStrength(List<HandballPlayer> players, HandballTactic tactic,
+                                    int activeCount, MatchState state) {
         List<HandballPlayer> defenders = players.stream()
-                .filter(p -> !p.getPosition().isGoalkeeper() && p.getPosition().isDefensive())
+                .filter(p -> !playingPosition(p, state).isGoalkeeper() && playingPosition(p, state).isDefensive())
                 .collect(Collectors.toList());
-        double base = defenders.isEmpty()
-                ? average(players) : defenders.stream().mapToInt(HandballPlayer::getOverallRating).average().orElse(50);
+        List<HandballPlayer> group = defenders.isEmpty() ? players : defenders;
+        double base = group.stream()
+                .mapToInt(p -> p.getEffectiveOverall(playingPosition(p, state)))
+                .average().orElse(50);
         return base * (1 - tactic.getConcedeProbabilityModifier()) * ((double) activeCount / FIELD_SIZE);
+    }
+
+    private HandballPosition playingPosition(HandballPlayer p, MatchState state) {
+        Position pos = state.getPlayingPosition(p);
+        return (pos instanceof HandballPosition hp) ? hp : p.getPosition();
     }
 
     private double strengthFactor(double atk, double def) {

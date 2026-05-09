@@ -111,5 +111,42 @@ public enum HandballPosition implements Position {
     public boolean isAttacking()  { return this == LEFT_WING || this == RIGHT_WING || this == CENTER_BACK; }
     public boolean isDefensive()  { return this == LEFT_BACK || this == CENTER_BACK || this == RIGHT_BACK || this == PIVOT; }
 
+    // ── Out-of-position penalty ───────────────────────────────────────────────
+
+    /**
+     * OVR points lost for playing at {@code playing} when natural position is {@code natural}.
+     *
+     * Scale:
+     *   Same position                   →  0
+     *   Mirrored wings / mirrored backs →  3
+     *   Center back ↔ side back         →  5
+     *   Pivot ↔ any back                →  8
+     *   Wing ↔ any back                 → 10
+     *   Pivot ↔ wing                    → 12
+     *   Any GK mismatch                 → 25
+     */
+    public static int getOutOfPositionPenalty(HandballPosition natural, HandballPosition playing) {
+        if (natural == playing) return 0;
+        if (natural == GOALKEEPER || playing == GOALKEEPER) return 25;
+
+        if (pair(natural, playing, LEFT_WING,  RIGHT_WING))  return 3;
+        if (pair(natural, playing, LEFT_BACK,  RIGHT_BACK))  return 3;
+        if (pair(natural, playing, CENTER_BACK, LEFT_BACK)
+         || pair(natural, playing, CENTER_BACK, RIGHT_BACK)) return 5;
+        if (natural.isPivot() && playing.isBack()
+         || natural.isBack()  && playing.isPivot())          return 8;
+        if (natural.isWing()  && playing.isBack()
+         || natural.isBack()  && playing.isWing())           return 10;
+        if (natural.isPivot() && playing.isWing()
+         || natural.isWing()  && playing.isPivot())          return 12;
+
+        return 10;
+    }
+
+    private static boolean pair(HandballPosition a, HandballPosition b,
+                                 HandballPosition x, HandballPosition y) {
+        return (a == x && b == y) || (a == y && b == x);
+    }
+
     public abstract Map<String, Double> getWeightedAttributes();
 }
