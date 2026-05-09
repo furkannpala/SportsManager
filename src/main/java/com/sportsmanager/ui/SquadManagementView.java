@@ -14,24 +14,33 @@ import java.util.stream.Collectors;
 
 /**
  * Screen 4 — Squad management with player list, detail card, and formation/tactic selectors.
+ * Supports tap-to-select + tap-to-swap between Starting XI and substitutes.
  */
 public class SquadManagementView extends HBox {
 
     private final SeasonState state;
     private final Team userTeam;
+
     private VBox detailPanel;
     private FormationPitchView squadPitchView;
+    private VBox playerListBox;
+    private Label swapStatusLabel;
+
+    /** The player currently waiting to be swapped; null when nothing is selected. */
+    private Player pendingSwap = null;
 
     public SquadManagementView() {
-        this.state = GameManager.getInstance().getState();
+        this.state    = GameManager.getInstance().getState();
         this.userTeam = state.getUserTeam();
         setSpacing(0);
         setPadding(new Insets(0));
         buildUI();
     }
 
+    // ── Build ────────────────────────────────────────────────────────────────────
+
     private void buildUI() {
-        // Left panel — player list
+        // ── Left panel ───────────────────────────────────────────────────────────
         VBox leftPanel = new VBox(0);
         leftPanel.setPrefWidth(380);
         leftPanel.setMinWidth(350);
@@ -40,28 +49,25 @@ public class SquadManagementView extends HBox {
         title.getStyleClass().add("section-label");
         title.setPadding(new Insets(16, 16, 8, 16));
 
-        VBox playerList = new VBox(2);
-        playerList.setPadding(new Insets(8));
+        swapStatusLabel = new Label("  Click a player to select, then click another to swap.");
+        swapStatusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #888899;");
+        swapStatusLabel.setPadding(new Insets(0, 16, 6, 16));
+        swapStatusLabel.setWrapText(true);
 
-        for (Player p : userTeam.getSquad()) {
-            HBox row = createPlayerRow(p);
-            playerList.getChildren().add(row);
-        }
+        playerListBox = new VBox(2);
+        playerListBox.setPadding(new Insets(8));
+        rebuildPlayerList();
 
-        ScrollPane scrollList = new ScrollPane(playerList);
+        ScrollPane scrollList = new ScrollPane(playerListBox);
         scrollList.setFitToWidth(true);
         VBox.setVgrow(scrollList, Priority.ALWAYS);
 
-        // Formation & Tactic selectors at bottom
         VBox bottomControls = createFormationTacticControls();
+        leftPanel.getChildren().addAll(title, swapStatusLabel, scrollList, bottomControls);
 
-        leftPanel.getChildren().addAll(title, scrollList, bottomControls);
-
-        // Right panel — formation pitch (fixed) + scrollable detail card
-        int lineupSize = state.getCurrentSport().getStartingLineupSize();
-        List<Player> first11 = userTeam.getSquad().stream().limit(lineupSize).collect(Collectors.toList());
+        // ── Right panel ──────────────────────────────────────────────────────────
         squadPitchView = new FormationPitchView(null);
-        squadPitchView.redrawWithPlayers(userTeam.getFormation(), first11, null, null);
+        refreshPitch();
         StackPane pitchWrapper = new StackPane(squadPitchView);
         pitchWrapper.setAlignment(Pos.CENTER);
 
@@ -89,13 +95,116 @@ public class SquadManagementView extends HBox {
         getChildren().addAll(leftPanel, rightOuter);
     }
 
+    // ── Player list ──────────────────────────────────────────────────────────────
+
+    /** Rebuild the left-side player list, inserting section headers and a divider. */
+    private void rebuildPlayerList() {
+        playerListBox.getChildren().clear();
+        int lineupSize = state.getCurrentSport().getStartingLineupSize();
+        List<Player> squad = userTeam.getSquad();
+
+        Label xiHeader = new Label("STARTING XI");
+        xiHeader.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #00d2ff;"
+                + " -fx-padding: 4 4 2 4;");
+        playerListBox.getChildren().add(xiHeader);
+
+        for (int i = 0; i < squad.size(); i++) {
+            if (i == lineupSize) {
+                Region divider = new Region();
+                divider.setStyle("-fx-background-color: #2a2a4a;");
+                divider.setPrefHeight(1);
+                divider.setMaxHeight(1);
+                VBox.setMargin(divider, new Insets(4, 0, 0, 0));
+
+                Label subHeader = new Label("SUBSTITUTES");
+                subHeader.setStyle("-fx-font-size: 10px; -fx-font-weight: bold; -fx-text-fill: #888899;"
+                        + " -fx-padding: 6 4 2 4;");
+                playerListBox.getChildren().addAll(divider, subHeader);
+            }
+            playerListBox.getChildren().add(createPlayerRow(squad.get(i)));
+        }
+    }
+
+    // ── Pitch refresh ────────────────────────────────────────────────────────────
+
+    private void refreshPitch() {
+        int lineupSize = state.getCurrentSport().getStartingLineupSize();
+        List<Player> first11 = userTeam.getSquad().stream()
+                .limit(lineupSize)
+                .collect(Collectors.toList());
+        squadPitchView.redrawWithPlayers(
+                userTeam.getFormation(), first11, pendingSwap, this::onPitchPlayerClick);
+    }
+
+    // ── Swap logic ───────────────────────────────────────────────────────────────
+
+    /** Called when the user clicks a player node on the right-side pitch. */
+    private void onPitchPlayerClick(Player clicked) {
+        if (pendingSwap == null) {
+            pendingSwap = clicked;
+            showPlayerDetail(clicked);
+        } else if (pendingSwap == clicked) {
+            pendingSwap = null;
+        } else {
+            userTeam.swapPlayers(pendingSwap, clicked);
+            pendingSwap = null;
+        }
+        updateSwapStatus();
+        rebuildPlayerList();
+        refreshPitch();
+    }
+
+    /** Called when the user clicks a row in the left-side player list. */
+    private void handleRowClick(Player p) {
+        if (pendingSwap == null) {
+            pendingSwap = p;
+            showPlayerDetail(p);
+        } else if (pendingSwap == p) {
+            pendingSwap = null;
+            showPlayerDetail(p);
+        } else {
+            userTeam.swapPlayers(pendingSwap, p);
+            pendingSwap = null;
+        }
+        updateSwapStatus();
+        rebuildPlayerList();
+        refreshPitch();
+    }
+
+    private void updateSwapStatus() {
+        if (pendingSwap != null) {
+            swapStatusLabel.setText(
+                    "  Selected: " + pendingSwap.getName() + " — click another player to swap.");
+            swapStatusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #00e676;");
+        } else {
+            swapStatusLabel.setText(
+                    "  Click a player to select, then click another to swap.");
+            swapStatusLabel.setStyle("-fx-font-size: 11px; -fx-text-fill: #888899;");
+        }
+    }
+
+    // ── Row builder ──────────────────────────────────────────────────────────────
+
     private HBox createPlayerRow(Player p) {
+        boolean selected = (p == pendingSwap);
+
+        String normalBg = selected ? "#1a3a2e" : "#1a1a2e";
+        String hoverBg  = selected ? "#1a4a2e" : "#222240";
+        String border   = selected
+                ? " -fx-border-color: #00e676; -fx-border-width: 1.5; -fx-border-radius: 8;"
+                : "";
+
+        String normalStyle = "-fx-background-color: " + normalBg
+                + "; -fx-background-radius: 8; -fx-cursor: hand;" + border;
+        String hoverStyle  = "-fx-background-color: " + hoverBg
+                + "; -fx-background-radius: 8; -fx-cursor: hand;" + border;
+
         HBox row = new HBox(10);
         row.setAlignment(Pos.CENTER_LEFT);
         row.setPadding(new Insets(8, 12, 8, 12));
-        row.setStyle("-fx-background-color: #1a1a2e; -fx-background-radius: 8; -fx-cursor: hand;");
+        row.setStyle(normalStyle);
 
-        // Initials avatar
+        // Avatar
         String initials = getInitials(p.getName());
         Label avatar = new Label(initials);
         avatar.setStyle("-fx-font-size: 13px; -fx-font-weight: bold; -fx-text-fill: #00d2ff;"
@@ -103,36 +212,26 @@ public class SquadManagementView extends HBox {
                 + " -fx-min-width: 36; -fx-min-height: 36; -fx-max-width: 36; -fx-max-height: 36;"
                 + " -fx-alignment: center;");
 
-        // Name
         Label name = new Label(p.getName());
         name.getStyleClass().add("text-normal");
         name.setStyle("-fx-font-size: 13px;");
         name.setPrefWidth(130);
 
-        // Position badge
         Label posBadge = createPositionBadge(p);
 
-        // Age
         Label age = new Label(String.valueOf(p.getAge()));
         age.getStyleClass().add("text-muted");
         age.setMinWidth(25);
 
-        // OVR
         Label ovr = new Label(String.valueOf(p.getOverallRating()));
         ovr.setStyle("-fx-text-fill: #00d2ff; -fx-font-weight: bold; -fx-font-size: 13px;");
         ovr.setMinWidth(30);
 
-        // Status dot
         Region statusDot = new Region();
-        if (p.isAvailable()) {
-            statusDot.getStyleClass().add("status-fit");
-        } else {
-            statusDot.getStyleClass().add("status-injured");
-        }
+        statusDot.getStyleClass().add(p.isAvailable() ? "status-fit" : "status-injured");
 
         row.getChildren().addAll(avatar, name, posBadge, age, ovr, statusDot);
 
-        // Injury / suspension label
         if (p.isSuspended()) {
             Label susLbl = new Label("🚫(" + p.getSuspensionGamesRemaining() + ")");
             susLbl.setStyle("-fx-text-fill: #ff9800; -fx-font-size: 11px;");
@@ -143,13 +242,14 @@ public class SquadManagementView extends HBox {
             row.getChildren().add(injLbl);
         }
 
-        row.setOnMouseClicked(e -> showPlayerDetail(p));
-
-        row.setOnMouseEntered(e -> row.setStyle("-fx-background-color: #222240; -fx-background-radius: 8; -fx-cursor: hand;"));
-        row.setOnMouseExited(e -> row.setStyle("-fx-background-color: #1a1a2e; -fx-background-radius: 8; -fx-cursor: hand;"));
+        row.setOnMouseClicked(e -> handleRowClick(p));
+        row.setOnMouseEntered(e -> row.setStyle(hoverStyle));
+        row.setOnMouseExited(e -> row.setStyle(normalStyle));
 
         return row;
     }
+
+    // ── Player detail card ───────────────────────────────────────────────────────
 
     private void showPlayerDetail(Player p) {
         detailPanel.getChildren().clear();
@@ -178,7 +278,6 @@ public class SquadManagementView extends HBox {
         ovrLbl.setStyle("-fx-text-fill: #00d2ff; -fx-font-weight: bold;");
         headerInfo.getChildren().addAll(posBadge, ageLbl, ovrLbl);
 
-        // Status
         if (p.isSuspended()) {
             Label susLabel = new Label("🚫 Suspended — " + p.getSuspensionGamesRemaining() + " games remaining");
             susLabel.setStyle("-fx-text-fill: #ff9800; -fx-font-size: 12px;");
@@ -194,12 +293,10 @@ public class SquadManagementView extends HBox {
         headerBox.getChildren().addAll(avatar, name, headerInfo);
         card.getChildren().add(0, headerBox);
 
-        // Separator
         Region sep = new Region();
         sep.setStyle("-fx-background-color: #2a2a4a; -fx-pref-height: 1; -fx-max-height: 1;");
         card.getChildren().add(sep);
 
-        // Attributes
         Label attrTitle = new Label("Attributes");
         attrTitle.getStyleClass().add("section-label");
         card.getChildren().add(attrTitle);
@@ -232,12 +329,13 @@ public class SquadManagementView extends HBox {
         detailPanel.getChildren().add(card);
     }
 
+    // ── Formation & Tactic selectors ─────────────────────────────────────────────
+
     private VBox createFormationTacticControls() {
         VBox controls = new VBox(10);
         controls.setPadding(new Insets(12));
         controls.setStyle("-fx-background-color: #16213e;");
 
-        // Formation
         Label formLabel = new Label("Formation");
         formLabel.getStyleClass().add("text-muted");
 
@@ -254,17 +352,13 @@ public class SquadManagementView extends HBox {
             for (Formation f : sport.getFormations()) {
                 if (f.getFormationName().equals(selected)) {
                     userTeam.setFormation(f);
-                    if (squadPitchView != null) {
-                        List<Player> top11 = userTeam.getSquad().stream().limit(state.getCurrentSport().getStartingLineupSize()).collect(Collectors.toList());
-                        squadPitchView.redrawWithPlayers(f, top11, null, null);
-                    }
+                    refreshPitch();
                     break;
                 }
             }
         });
         formationBox.setMaxWidth(Double.MAX_VALUE);
 
-        // Tactic
         Label tacticLabel = new Label("Tactic");
         tacticLabel.getStyleClass().add("text-muted");
 
@@ -289,6 +383,8 @@ public class SquadManagementView extends HBox {
         controls.getChildren().addAll(formLabel, formationBox, tacticLabel, tacticBox);
         return controls;
     }
+
+    // ── Helpers ──────────────────────────────────────────────────────────────────
 
     private Label createPositionBadge(Player p) {
         Position pos = p.getPosition();
@@ -336,27 +432,26 @@ public class SquadManagementView extends HBox {
 
     private String getShortPosition(FootballPosition pos) {
         return switch (pos) {
-            case GOALKEEPER -> "GK";
-            case CENTRE_BACK -> "CB";
-            case LEFT_BACK -> "LB";
-            case RIGHT_BACK -> "RB";
+            case GOALKEEPER           -> "GK";
+            case CENTRE_BACK          -> "CB";
+            case LEFT_BACK            -> "LB";
+            case RIGHT_BACK           -> "RB";
             case DEFENSIVE_MIDFIELDER -> "CDM";
-            case CENTRAL_MIDFIELDER -> "CM";
+            case CENTRAL_MIDFIELDER   -> "CM";
             case ATTACKING_MIDFIELDER -> "CAM";
-            case LEFT_MIDFIELDER -> "LM";
-            case RIGHT_MIDFIELDER -> "RM";
-            case LEFT_WINGER -> "LW";
-            case RIGHT_WINGER -> "RW";
-            case STRIKER -> "ST";
-            case CENTRE_FORWARD -> "CF";
+            case LEFT_MIDFIELDER      -> "LM";
+            case RIGHT_MIDFIELDER     -> "RM";
+            case LEFT_WINGER          -> "LW";
+            case RIGHT_WINGER         -> "RW";
+            case STRIKER              -> "ST";
+            case CENTRE_FORWARD       -> "CF";
         };
     }
 
     private String getInitials(String fullName) {
         String[] parts = fullName.split("\\s+");
-        if (parts.length >= 2) {
+        if (parts.length >= 2)
             return ("" + parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
-        }
         return fullName.substring(0, Math.min(2, fullName.length())).toUpperCase();
     }
 
