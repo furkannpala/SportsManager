@@ -103,6 +103,18 @@ public class HandballPlayer extends Player {
     @Override
     public HandballPosition getPosition() { return position; }
 
+    public int getEffectiveOverall(HandballPosition playingPosition) {
+        if (playingPosition == null || playingPosition == this.position) return getOverallRating();
+        if (playingPosition == HandballPosition.GOALKEEPER
+                || this.position == HandballPosition.GOALKEEPER) return 25;
+        int penalty = HandballPosition.getOutOfPositionPenalty(this.position, playingPosition);
+        return Math.max(1, getOverallRating() - penalty);
+    }
+
+    public boolean isOutOfPosition(HandballPosition playingPosition) {
+        return playingPosition != null && playingPosition != this.position;
+    }
+
     // ── Stamina ───────────────────────────────────────────────────────────────
 
     public int getCurrentStamina()       { return (int) Math.round(currentStamina); }
