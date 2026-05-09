@@ -78,8 +78,7 @@ public class Standings {
         return records.get(team);
     }
 
-    /** Package-private: used by FootballRuleSet.calculateTieBreaker(). */
-    int compareByTieBreaker(Team a, Team b) {
+    public int compareByTieBreaker(Team a, Team b) {
         TeamRecord ra = records.get(a);
         TeamRecord rb = records.get(b);
         return compareTeams(a, ra, b, rb);
