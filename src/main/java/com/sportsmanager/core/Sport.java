@@ -39,6 +39,8 @@ public interface Sport {
 
     default int getSquadSize() { return 23; }
 
+    default int getLeagueSize() { return 20; }
+
     default List<String> getAttributesForCategory(TrainingCategory focus) {
         return new ArrayList<>();
     }

@@ -33,8 +33,16 @@ public class MatchState {
     private int homeActivePlayers;
     private int awayActivePlayers;
 
-    // Yellow card tracker — used for two-yellows-equal-red logic
+    // Yellow card tracker — used for two-yellows-equal-2min logic (per player)
     private final Map<Player, Integer> yellowCardCounts = new HashMap<>();
+
+    // Team-level yellow card totals (teamId → count): once ≥3, each new yellow
+    // for that team escalates directly to a 2-minute suspension.
+    private int homeTeamYellows = 0;
+    private int awayTeamYellows = 0;
+
+    // Handball 2-minute suspensions: player → minute at which they may return
+    private final Map<Player, Integer> twoMinuteSuspensions = new HashMap<>();
 
     // In-match position assignments: maps each field player to the position they
     // are currently instructed to play. Initialized from the formation at match
@@ -176,12 +184,53 @@ public class MatchState {
     public String getAwayTeamId()        { return awayTeamId; }
 
     /**
-     * Records a yellow card for the player.
-     * @return true if this is the player's second yellow (triggers red card).
+     * Records a yellow card for the player and increments the owning team's total.
+     * @return true if this is the player's second yellow (triggers 2-min suspension).
      */
-    public boolean recordYellowCard(Player p) {
+    public boolean recordYellowCard(Player p, String teamId) {
+        // Increment team total
+        if (teamId.equals(homeTeamId)) homeTeamYellows++;
+        else                           awayTeamYellows++;
+        // Increment player total
         int count = yellowCardCounts.merge(p, 1, Integer::sum);
         return count >= 2;
+    }
+
+    /** Returns the number of yellow cards the given team has accumulated this match. */
+    public int getTeamYellowCount(String teamId) {
+        return teamId.equals(homeTeamId) ? homeTeamYellows : awayTeamYellows;
+    }
+
+    /**
+     * Registers a handball 2-minute suspension for the given player.
+     * The player returns at {@code currentMinute + 2}.
+     */
+    public void applyTwoMinuteSuspension(Player p, int currentMinute) {
+        twoMinuteSuspensions.put(p, currentMinute + 2);
+    }
+
+    /**
+     * Checks whether the player is currently serving a 2-minute suspension.
+     */
+    public boolean isServingTwoMinute(Player p) {
+        return twoMinuteSuspensions.containsKey(p);
+    }
+
+    /**
+     * Returns every player whose 2-minute suspension has expired at or before
+     * {@code currentMinute}, removing them from the suspension tracker.
+     * The caller is responsible for putting them back onto the field.
+     */
+    public List<Player> pollReturningPlayers(int currentMinute) {
+        List<Player> returning = new ArrayList<>();
+        twoMinuteSuspensions.entrySet().removeIf(e -> {
+            if (e.getValue() <= currentMinute) {
+                returning.add(e.getKey());
+                return true;
+            }
+            return false;
+        });
+        return returning;
     }
 
     public void incrementHomeShots()     { homeShots++; }
