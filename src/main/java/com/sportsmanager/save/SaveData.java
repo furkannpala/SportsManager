@@ -28,6 +28,9 @@ public class SaveData {
     /** teamId → assigned logo file index (1-based). */
     public Map<String, Integer> logoAssignments = new HashMap<>();
 
+    /** Active training plans for the user's squad. */
+    public List<TrainingPlanDTO> trainingPlans = new ArrayList<>();
+
     // ── Nested DTOs ──────────────────────────────────────────────────────────
 
     public static class TeamDTO {
@@ -86,5 +89,17 @@ public class SaveData {
         public boolean hasResult;
         public int homeScore;
         public int awayScore;
+    }
+
+    /**
+     * Captures one active training assignment.
+     * playerTeamId + playerIndex uniquely identify the player within the saved squad.
+     */
+    public static class TrainingPlanDTO {
+        public String playerTeamId;   // must be the user team's id
+        public int    playerIndex;    // index within that team's player list
+        public String optionId;       // PositionalTrainingOption.getId()
+        public int    weeksRemaining;
+        public int    totalWeeks;     // Integer.MAX_VALUE means "maintenance"
     }
 }

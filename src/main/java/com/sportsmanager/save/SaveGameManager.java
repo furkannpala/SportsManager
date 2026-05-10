@@ -27,6 +27,10 @@ import com.sportsmanager.league.MatchWeek;
 import com.sportsmanager.league.Standings;
 import com.sportsmanager.ui.LogoManager;
 import com.sportsmanager.core.MatchResult;
+import com.sportsmanager.football.FootballTrainingOptions;
+import com.sportsmanager.football.PositionalTrainingOption;
+import com.sportsmanager.handball.HandballTrainingOptions;
+import com.sportsmanager.training.PlayerTrainingPlan;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -165,6 +169,24 @@ public class SaveGameManager {
         }
 
         d.logoAssignments = LogoManager.getInstance().getAssignments();
+
+        // ── Training plans ────────────────────────────────────────────────────
+        Team userTeam = state.getUserTeam();
+        List<Player> squad = userTeam.getSquad();
+        for (int i = 0; i < squad.size(); i++) {
+            Player p = squad.get(i);
+            PlayerTrainingPlan plan = state.getTrainingPlan(p);
+            if (plan != null) {
+                SaveData.TrainingPlanDTO tDto = new SaveData.TrainingPlanDTO();
+                tDto.playerTeamId  = userTeam.getTeamId();
+                tDto.playerIndex   = i;
+                tDto.optionId      = plan.getOption().getId();
+                tDto.weeksRemaining = plan.getWeeksRemaining();
+                tDto.totalWeeks    = plan.getTotalWeeks();
+                d.trainingPlans.add(tDto);
+            }
+        }
+
         return d;
     }
 
@@ -296,7 +318,32 @@ public class SaveGameManager {
 
         GameManager.getInstance().loadGame(state, league);
         LogoManager.getInstance().restoreAssignments(data.logoAssignments);
+
+        // ── Training plans ────────────────────────────────────────────────────
+        if (data.trainingPlans != null) {
+            restoreTrainingPlans(data.trainingPlans, userTeam, state);
+        }
+
         return true;
+    }
+
+    private void restoreTrainingPlans(List<SaveData.TrainingPlanDTO> dtos,
+                                      Team userTeam, SeasonState state) {
+        List<Player> squad = userTeam.getSquad();
+        for (SaveData.TrainingPlanDTO dto : dtos) {
+            if (dto.playerIndex < 0 || dto.playerIndex >= squad.size()) continue;
+            Player player = squad.get(dto.playerIndex);
+
+            // Look up the option from both football and handball registries
+            PositionalTrainingOption option = FootballTrainingOptions.findById(dto.optionId);
+            if (option == null) option = HandballTrainingOptions.findById(dto.optionId);
+            if (option == null) continue; // unknown option – skip
+
+            int totalWeeks = dto.totalWeeks <= 0 ? Integer.MAX_VALUE : dto.totalWeeks;
+            PlayerTrainingPlan plan = new PlayerTrainingPlan(player, option,
+                    dto.weeksRemaining, totalWeeks);
+            state.assignTraining(player, plan);
+        }
     }
 
     private Sport resolveSport(String sportName) {

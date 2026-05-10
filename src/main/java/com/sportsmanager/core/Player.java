@@ -90,7 +90,7 @@ public abstract class Player {
         return suspensionGamesRemaining;
     }
 
-    public double getForm() { return 7.5; }
+    public abstract double getForm();
 
     public boolean isInjured() {
         return injuryStatus;
