@@ -154,7 +154,7 @@ public class FootballMatchEngine implements MatchEngine {
                 }
                 if (e.getEventType() == FootballEventType.YELLOW_CARD) {
                     adjustForm(e.getInvolvedPlayer(), -0.2);
-                    if (state.recordYellowCard(e.getInvolvedPlayer())) {
+                    if (state.recordYellowCard(e.getInvolvedPlayer(), home.getTeamId())) {
                         e.getInvolvedPlayer().applySuspension(generateSuspensionDuration());
                         FootballMatchEvent red = new FootballMatchEvent(
                                 FootballEventType.RED_CARD, minute,
@@ -191,7 +191,7 @@ public class FootballMatchEngine implements MatchEngine {
                 }
                 if (e.getEventType() == FootballEventType.YELLOW_CARD) {
                     adjustForm(e.getInvolvedPlayer(), -0.2);
-                    if (state.recordYellowCard(e.getInvolvedPlayer())) {
+                    if (state.recordYellowCard(e.getInvolvedPlayer(), away.getTeamId())) {
                         e.getInvolvedPlayer().applySuspension(generateSuspensionDuration());
                         FootballMatchEvent red = new FootballMatchEvent(
                                 FootballEventType.RED_CARD, minute,

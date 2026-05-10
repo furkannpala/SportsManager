@@ -100,12 +100,24 @@ public class TeamGenerator {
 
     private List<TierSpec> buildTierSpecs() {
         List<TierSpec> tiers = new ArrayList<>();
+        int total = sport.getLeagueSize();
+        
+        // Proportions approximately: 10% Elite, 20% Strong, 25% Mid, 25% Lower, 20% Relegation
+        int elite = Math.max(1, (int) Math.round(total * 0.10));
+        int strong = Math.max(1, (int) Math.round(total * 0.20));
+        int mid = Math.max(1, (int) Math.round(total * 0.25));
+        int lower = Math.max(1, (int) Math.round(total * 0.25));
+        int rel = total - (elite + strong + mid + lower);
+        if (rel < 1) { // Fallback just in case
+            rel = 1;
+            lower = total - (elite + strong + mid + rel);
+        }
 
-        tiers.add(new TierSpec(2, 88));  // Elite — title contenders
-        tiers.add(new TierSpec(4, 79));  // Strong — top-half
-        tiers.add(new TierSpec(5, 70));  // Mid-table
-        tiers.add(new TierSpec(5, 61));  // Lower-mid
-        tiers.add(new TierSpec(4, 50));  // Relegation zone
+        tiers.add(new TierSpec(elite, 88));  // Elite — title contenders
+        tiers.add(new TierSpec(strong, 79)); // Strong — top-half
+        tiers.add(new TierSpec(mid, 70));    // Mid-table
+        tiers.add(new TierSpec(lower, 61));  // Lower-mid
+        tiers.add(new TierSpec(rel, 50));    // Relegation zone
         return tiers;
     }
 

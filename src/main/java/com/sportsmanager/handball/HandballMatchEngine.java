@@ -84,6 +84,17 @@ public class HandballMatchEngine implements MatchEngine {
         if (minute < start) minute = start;
         state.setCurrentMinute(minute);
 
+        // ── Return players from 2-minute suspensions ───────────────────────────
+        for (Player returning : state.pollReturningPlayers(minute)) {
+            boolean isHomePlayer = home.getSquad().contains(returning);
+            List<Player> field = isHomePlayer ? state.getHomeFieldPlayers() : state.getAwayFieldPlayers();
+            if (!field.contains(returning)) {
+                field.add(returning);
+                if (isHomePlayer) state.setHomeActivePlayers(state.getHomeActivePlayers() + 1);
+                else              state.setAwayActivePlayers(state.getAwayActivePlayers() + 1);
+            }
+        }
+
         HandballTactic homeTactic = resolveTactic(home);
         HandballTactic awayTactic = resolveTactic(away);
         List<HandballPlayer> homeP = handballPlayers(state.getHomeFieldPlayers());
@@ -144,6 +155,8 @@ public class HandballMatchEngine implements MatchEngine {
                 if (isHome) state.decrementHomeActivePlayers(); else state.decrementAwayActivePlayers();
                 removeFromField(e.getInvolvedPlayer(),
                         isHome ? state.getHomeFieldPlayers() : state.getAwayFieldPlayers());
+                // Register return time so the player comes back after 2 minutes
+                state.applyTwoMinuteSuspension(e.getInvolvedPlayer(), e.getMinute());
             }
             case RED_CARD -> {
                 adjustForm(e.getInvolvedPlayer(), -0.8);
@@ -154,15 +167,34 @@ public class HandballMatchEngine implements MatchEngine {
             }
             case YELLOW_CARD -> {
                 adjustForm(e.getInvolvedPlayer(), -0.1);
-                if (state.recordYellowCard(e.getInvolvedPlayer())) {
-                    e.getInvolvedPlayer().applySuspension(generateSuspensionDuration());
-                    HandballMatchEvent red = new HandballMatchEvent(
-                            HandballEventType.RED_CARD, e.getMinute(),
-                            e.getInvolvedPlayer(), team.getTeamId());
-                    state.addEvent(red);
-                    if (isHome) state.decrementHomeActivePlayers(); else state.decrementAwayActivePlayers();
-                    removeFromField(e.getInvolvedPlayer(),
-                            isHome ? state.getHomeFieldPlayers() : state.getAwayFieldPlayers());
+                String teamId = team.getTeamId();
+                int teamYellows = state.getTeamYellowCount(teamId); // count BEFORE this card
+                boolean secondYellow = state.recordYellowCard(e.getInvolvedPlayer(), teamId);
+
+                if (teamYellows >= 3) {
+                    // Team has already hit 3 yellows — escalate this card immediately.
+                    // 25% chance it's a very severe foul → direct red card
+                    // 75% chance → 2-minute suspension
+                    if (random.nextDouble() < 0.25) {
+                        HandballMatchEvent red = new HandballMatchEvent(
+                                HandballEventType.RED_CARD, e.getMinute(),
+                                e.getInvolvedPlayer(), teamId);
+                        state.addEvent(red);
+                        applyEvent(red, state, team, isHome);
+                    } else {
+                        HandballMatchEvent twoMin = new HandballMatchEvent(
+                                HandballEventType.TWO_MIN_SUSPENSION, e.getMinute(),
+                                e.getInvolvedPlayer(), teamId);
+                        state.addEvent(twoMin);
+                        applyEvent(twoMin, state, team, isHome);
+                    }
+                } else if (secondYellow) {
+                    // Handball rule: 2nd yellow for this player = 2-minute suspension
+                    HandballMatchEvent twoMin = new HandballMatchEvent(
+                            HandballEventType.TWO_MIN_SUSPENSION, e.getMinute(),
+                            e.getInvolvedPlayer(), teamId);
+                    state.addEvent(twoMin);
+                    applyEvent(twoMin, state, team, isHome);
                 }
             }
             default -> { /* FOUL, PENALTY_AWARDED — no state change */ }
