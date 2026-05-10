@@ -113,23 +113,6 @@ public class FootballPlayer extends Player {
         }
     }
 
-    public void decreaseAttribute(String attributeName, int amount) {
-        int current = getAttributeValue(attributeName);
-        int updated = clamp(current - amount);
-        switch (attributeName.toLowerCase()) {
-            case "pace"        -> pace        = updated;
-            case "shooting"    -> shooting    = updated;
-            case "passing"     -> passing     = updated;
-            case "dribbling"   -> dribbling   = updated;
-            case "defending"   -> defending   = updated;
-            case "physical"    -> physical    = updated;
-            case "diving"      -> diving      = updated;
-            case "handling"    -> handling    = updated;
-            case "kicking"     -> kicking     = updated;
-            case "reflexes"    -> reflexes    = updated;
-            case "positioning" -> positioning = updated;
-        }
-    }
     // ── Stamina ───────────────────────────────────────────────────────────────────
 
     /** Returns current stamina as an integer 0–100. */
@@ -160,6 +143,7 @@ public class FootballPlayer extends Player {
      * Natural weekly drift: form moves 0.08 toward 7.5.
      * Called once per game week by the training engine.
      */
+    @Override
     public void driftForm() {
         if (form > 7.5) form = Math.max(7.5, form - 0.08);
         else if (form < 7.5) form = Math.min(7.5, form + 0.08);

@@ -4,7 +4,9 @@ import com.sportsmanager.core.Player;
 import com.sportsmanager.core.Position;
 import org.junit.jupiter.api.Test;
 
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -74,7 +76,10 @@ class FootballPlayerFactoryTest {
         FootballPlayerFactory factory = new FootballPlayerFactory(new Random(42));
 
         // anonymous non-FootballPosition implementation
-        Position unknown = () -> "Unknown";
+        Position unknown = new Position() {
+            @Override public String getName() { return "Unknown"; }
+            @Override public Map<String, Double> getWeightedAttributes() { return Collections.emptyMap(); }
+        };
         Player p = factory.createPlayer("X", 20, unknown, 60);
 
         assertInstanceOf(FootballPlayer.class, p);

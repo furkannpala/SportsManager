@@ -28,7 +28,7 @@ import com.sportsmanager.league.Standings;
 import com.sportsmanager.ui.LogoManager;
 import com.sportsmanager.core.MatchResult;
 import com.sportsmanager.football.FootballTrainingOptions;
-import com.sportsmanager.football.PositionalTrainingOption;
+import com.sportsmanager.training.PositionalTrainingOption;
 import com.sportsmanager.handball.HandballTrainingOptions;
 import com.sportsmanager.training.PlayerTrainingPlan;
 

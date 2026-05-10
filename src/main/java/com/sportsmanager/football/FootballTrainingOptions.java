@@ -1,5 +1,7 @@
 package com.sportsmanager.football;
 
+import com.sportsmanager.training.PositionalTrainingOption;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;

@@ -1,12 +1,8 @@
-package com.sportsmanager.football;
+package com.sportsmanager.training;
 
 import java.util.List;
 import java.util.Random;
 
-/**
- * A single position-specific training option.
- * Empty attribute list = "balanced" mode (all attributes, very slow).
- */
 public final class PositionalTrainingOption {
 
     private static final Random RANDOM = new Random();
@@ -14,7 +10,7 @@ public final class PositionalTrainingOption {
     private final String id;
     private final String name;
     private final String description;
-    private final List<String> attributes;   // empty → balanced
+    private final List<String> attributes;
     private final int minWeeks;
     private final int maxWeeks;
 
@@ -36,7 +32,6 @@ public final class PositionalTrainingOption {
     public int           getMinWeeks()       { return minWeeks; }
     public int           getMaxWeeks()       { return maxWeeks; }
 
-    /** Rolls a random duration within [minWeeks, maxWeeks]. */
     public int generateDuration() {
         if (minWeeks == maxWeeks) return minWeeks;
         return minWeeks + RANDOM.nextInt(maxWeeks - minWeeks + 1);

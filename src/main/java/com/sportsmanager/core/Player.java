@@ -92,6 +92,12 @@ public abstract class Player {
 
     public abstract double getForm();
 
+    public abstract void driftForm();
+
+    public void decreaseAttribute(String attributeName, int amount) {
+        increaseAttribute(attributeName, -amount);
+    }
+
     public boolean isInjured() {
         return injuryStatus;
     }

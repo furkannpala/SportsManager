@@ -1,7 +1,7 @@
 package com.sportsmanager.training;
 
 import com.sportsmanager.core.Player;
-import com.sportsmanager.football.PositionalTrainingOption;
+import com.sportsmanager.training.PositionalTrainingOption;
 
 /**
  * Tracks an active training assignment for one player.

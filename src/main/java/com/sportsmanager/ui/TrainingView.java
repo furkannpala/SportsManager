@@ -7,7 +7,7 @@ import com.sportsmanager.core.Team;
 import com.sportsmanager.football.FootballPlayer;
 import com.sportsmanager.football.FootballPosition;
 import com.sportsmanager.football.FootballTrainingOptions;
-import com.sportsmanager.football.PositionalTrainingOption;
+import com.sportsmanager.training.PositionalTrainingOption;
 import com.sportsmanager.game.GameManager;
 import com.sportsmanager.game.SeasonState;
 import com.sportsmanager.handball.HandballPlayer;

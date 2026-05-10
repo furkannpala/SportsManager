@@ -127,6 +127,7 @@ public class HandballPlayer extends Player {
     public double getForm()              { return form; }
     public void setForm(double f)        { form = Math.max(5.0, Math.min(10.0, f)); }
     public void adjustForm(double delta) { setForm(form + delta); }
+    @Override
     public void driftForm() {
         if (form > 7.5)      form = Math.max(7.5, form - 0.08);
         else if (form < 7.5) form = Math.min(7.5, form + 0.08);

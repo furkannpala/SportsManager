@@ -1,6 +1,6 @@
 package com.sportsmanager.handball;
 
-import com.sportsmanager.football.PositionalTrainingOption;
+import com.sportsmanager.training.PositionalTrainingOption;
 
 import java.util.ArrayList;
 import java.util.HashMap;
